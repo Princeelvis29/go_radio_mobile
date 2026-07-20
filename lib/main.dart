@@ -3,11 +3,21 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:just_audio/just_audio.dart';
+import 'package:just_audio_background/just_audio_background.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize Background Audio & OS Lock Screen Controls
+  await JustAudioBackground.init(
+    androidNotificationChannelId: 'com.goradio.app.channel.audio',
+    androidNotificationChannelName: 'Go Radio Live Playback',
+    androidNotificationOngoing: true,
+    androidShowNotificationBadge: true,
+  );
+
   runApp(const GoRadioApp());
 }
 
@@ -105,11 +115,34 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
     _metadataTimer = Timer.periodic(const Duration(seconds: 15), (_) => _fetchNowPlaying());
   }
 
+  // --- Initialize Audio with MediaItem Tag for Background / Lock Screen ---
   Future<void> _initAudioPlayer() async {
     try {
-      await _audioPlayer.setUrl(_streamUrl);
+      await _setAudioSourceWithMetadata();
     } catch (e) {
       debugPrint('Error loading audio stream: $e');
+    }
+  }
+
+  Future<void> _setAudioSourceWithMetadata() async {
+    try {
+      await _audioPlayer.setAudioSource(
+        AudioSource.uri(
+          Uri.parse(_streamUrl),
+          tag: MediaItem(
+            id: 'goradio_live_stream',
+            album: 'GO RADIO LIVE',
+            title: _songTitle,
+            artist: _artistName,
+            artUri: _albumArtUrl != null && _albumArtUrl!.isNotEmpty
+                ? Uri.tryParse(_albumArtUrl!)
+                : null,
+          ),
+        ),
+        preload: false,
+      );
+    } catch (e) {
+      debugPrint('Error setting audio source metadata: $e');
     }
   }
 
@@ -163,6 +196,11 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
             _songHistory = parsedHistory;
             _isLoadingMetaData = false;
           });
+
+          // Update lock screen notification metadata if stream is paused
+          if (!_audioPlayer.playing) {
+            _setAudioSourceWithMetadata();
+          }
         }
       }
     } catch (e) {
@@ -187,10 +225,14 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
     }
   }
 
-  // --- Share App Functionality ---
+  // --- Live Share Button Functionality ---
   void _shareApp() {
+    final String trackInfo = _artistName.isNotEmpty && _artistName != 'Connecting to Go Radio'
+        ? '$_songTitle by $_artistName'
+        : _songTitle;
+        
     Share.share(
-      'Listening to GO RADIO live right now! Currently playing: "$_songTitle" by $_artistName. Listen here: https://online.goradio.com.ng',
+      "I'm listening to Go Radio Live! Currently playing: $trackInfo. Download the app here: https://live.goradio.com.ng",
     );
   }
 
@@ -403,6 +445,9 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
                                 if (playing) {
                                   await _audioPlayer.pause();
                                 } else {
+                                  if (_audioPlayer.audioSource == null) {
+                                    await _setAudioSourceWithMetadata();
+                                  }
                                   await _audioPlayer.play();
                                 }
                               },
