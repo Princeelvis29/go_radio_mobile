@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "com.example.go_radio_mobile"
-    compileSdk = 34
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
