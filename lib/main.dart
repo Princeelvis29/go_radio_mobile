@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:just_audio/just_audio.dart';
@@ -415,7 +416,7 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
                   ),
                   child: Column(
                     children: [
-                      // Stream Playback StreamBuilder
+                      // Stream Playback StreamBuilder with Equalizer
                       StreamBuilder<PlayerState>(
                         stream: _audioPlayer.playerStateStream,
                         builder: (context, snapshot) {
@@ -423,37 +424,47 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
                           final processingState = playerState?.processingState;
                           final playing = playerState?.playing ?? false;
 
+                          Widget playButton;
                           if (processingState == ProcessingState.loading ||
                               processingState == ProcessingState.buffering) {
-                            return const SizedBox(
+                            playButton = const SizedBox(
                               height: 64,
                               width: 64,
                               child: CircularProgressIndicator(color: Color(0xFFEF4444)),
                             );
+                          } else {
+                            playButton = Container(
+                              decoration: const BoxDecoration(
+                                color: Color(0xFFEF4444),
+                                shape: BoxShape.circle,
+                              ),
+                              child: IconButton(
+                                iconSize: 42,
+                                icon: Icon(
+                                  playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                                  color: Colors.white,
+                                ),
+                                onPressed: () async {
+                                  if (playing) {
+                                    await _audioPlayer.pause();
+                                  } else {
+                                    if (_audioPlayer.audioSource == null) {
+                                      await _setAudioSourceWithMetadata();
+                                    }
+                                    await _audioPlayer.play();
+                                  }
+                                },
+                              ),
+                            );
                           }
 
-                          return Container(
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFEF4444),
-                              shape: BoxShape.circle,
-                            ),
-                            child: IconButton(
-                              iconSize: 42,
-                              icon: Icon(
-                                playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                                color: Colors.white,
-                              ),
-                              onPressed: () async {
-                                if (playing) {
-                                  await _audioPlayer.pause();
-                                } else {
-                                  if (_audioPlayer.audioSource == null) {
-                                    await _setAudioSourceWithMetadata();
-                                  }
-                                  await _audioPlayer.play();
-                                }
-                              },
-                            ),
+                          return Column(
+                            children: [
+                              // Wide Web-Style Equalizer
+                              WebStyleEqualizer(isPlaying: playing),
+                              const SizedBox(height: 24),
+                              playButton,
+                            ],
                           );
                         },
                       ),
@@ -526,7 +537,7 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
                             itemCount: _songHistory.length,
-                            separatorBuilder: (_, __) => const Divider(color: Colors.white10),
+                            separatorBuilder: (_, _) => const Divider(color: Colors.white10),
                             itemBuilder: (context, index) {
                               final track = _songHistory[index];
                               return Row(
@@ -539,7 +550,7 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
                                             width: 38,
                                             height: 38,
                                             fit: BoxFit.cover,
-                                            errorBuilder: (_, __, ___) => Image.asset(
+                                            errorBuilder: (_, _, _) => Image.asset(
                                               _defaultLogoPath,
                                               width: 38,
                                               height: 38,
@@ -599,7 +610,7 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       itemCount: _programSchedule.length,
-                      separatorBuilder: (_, __) => const Divider(color: Colors.white10),
+                      separatorBuilder: (_, _) => const Divider(color: Colors.white10),
                       itemBuilder: (context, index) {
                         final item = _programSchedule[index];
                         return Row(
@@ -792,6 +803,96 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// --- Web-Style Animated Equalizer Widget ---
+class WebStyleEqualizer extends StatefulWidget {
+  final bool isPlaying;
+  final Color color;
+
+  const WebStyleEqualizer({
+    super.key,
+    required this.isPlaying,
+    this.color = const Color(0xFFEF4444), // RedAccent matches GO RADIO theme
+  });
+
+  @override
+  State<WebStyleEqualizer> createState() => _WebStyleEqualizerState();
+}
+
+class _WebStyleEqualizerState extends State<WebStyleEqualizer>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  final Random _random = Random();
+  final int _barCount = 45; // Number of bars to fill the container width
+  late List<double> _heights;
+
+  @override
+  void initState() {
+    super.initState();
+    _heights = List.filled(_barCount, 4.0);
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 200),
+    )..addListener(() {
+        if (widget.isPlaying) {
+          setState(() {
+            // Randomly generate heights for the bounce effect mimicking a live waveform
+            for (int i = 0; i < _barCount; i++) {
+              _heights[i] = _random.nextDouble() * 35.0 + 4.0;
+            }
+          });
+        }
+      });
+
+    if (widget.isPlaying) {
+      _controller.repeat(reverse: true);
+    }
+  }
+
+  @override
+  void didUpdateWidget(WebStyleEqualizer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isPlaying != oldWidget.isPlaying) {
+      if (widget.isPlaying) {
+        _controller.repeat(reverse: true);
+      } else {
+        _controller.stop();
+        setState(() {
+          _heights = List.filled(_barCount, 4.0); // Flat when paused
+        });
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 40, // Max height of the waveform
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center, 
+        children: List.generate(_barCount, (index) {
+          return AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            margin: const EdgeInsets.symmetric(horizontal: 1.5),
+            width: 3.0,
+            height: _heights[index],
+            decoration: BoxDecoration(
+              color: widget.color,
+              borderRadius: BorderRadius.circular(2.0),
+            ),
+          );
+        }),
       ),
     );
   }
