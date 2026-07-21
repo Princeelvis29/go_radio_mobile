@@ -17,6 +17,7 @@ Future<void> main() async {
     androidNotificationChannelName: 'Go Radio Live Playback',
     androidNotificationOngoing: true,
     androidShowNotificationBadge: true,
+    androidNotificationIcon: 'mipmap/launcher_icon', // 🚨 THIS PREVENTS THE CRASH
   );
 
   runApp(const GoRadioApp());
