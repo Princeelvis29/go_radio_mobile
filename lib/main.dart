@@ -306,368 +306,460 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
         backgroundColor: const Color(0xFF25D366),
         child: const Icon(Icons.chat, color: Colors.white, size: 28),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20.0),
-        child: Center(
-          child: Container(
-            constraints: const BoxConstraints(maxWidth: 450),
-            padding: const EdgeInsets.all(20.0),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1E293B),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.white10),
-              boxShadow: const [
-                BoxShadow(
-                  color: Colors.black45,
-                  blurRadius: 15,
-                  offset: Offset(0, 5),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // Station Logo
-                Image.asset(
-                  _defaultLogoPath,
-                  height: 60,
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
-                ),
-                const SizedBox(height: 12),
-
-                // Live Indicator Badge
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      width: 10,
-                      height: 10,
-                      decoration: const BoxDecoration(
-                        color: Colors.redAccent,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    const Text(
-                      'LIVE ON AIR',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 2,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-
-                // Album Artwork
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: Container(
-                    width: 220,
-                    height: 220,
-                    color: Colors.black26,
-                    child: _albumArtUrl != null && _albumArtUrl!.isNotEmpty
-                        ? Image.network(
-                            _albumArtUrl!,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) =>
-                                Image.asset(_defaultLogoPath, fit: BoxFit.cover),
-                          )
-                        : Image.asset(_defaultLogoPath, fit: BoxFit.cover),
+      // 🚨 Pull-To-Refresh Implementation
+      body: RefreshIndicator(
+        onRefresh: _fetchNowPlaying,
+        color: const Color(0xFFEF4444),
+        backgroundColor: const Color(0xFF1E293B),
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(), // Ensures pull-to-refresh works even if content is small
+          padding: const EdgeInsets.all(20.0),
+          child: Center(
+            child: Container(
+              constraints: const BoxConstraints(maxWidth: 450),
+              padding: const EdgeInsets.all(20.0),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1E293B),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.white10),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Colors.black45,
+                    blurRadius: 15,
+                    offset: Offset(0, 5),
                   ),
-                ),
-                const SizedBox(height: 20),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // Station Logo
+                  Image.asset(
+                    _defaultLogoPath,
+                    height: 60,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+                  ),
+                  const SizedBox(height: 12),
 
-                // Now Playing Metadata Display
-                Text(
-                  _songTitle,
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  _artistName,
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.white60,
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // Audio Controls Block
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF0F172A),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.white10),
-                  ),
-                  child: Column(
+                  // Live Indicator Badge
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // Stream Playback StreamBuilder with Equalizer
-                      StreamBuilder<PlayerState>(
-                        stream: _audioPlayer.playerStateStream,
-                        builder: (context, snapshot) {
-                          final playerState = snapshot.data;
-                          final processingState = playerState?.processingState;
-                          final playing = playerState?.playing ?? false;
+                      Container(
+                        width: 10,
+                        height: 10,
+                        decoration: const BoxDecoration(
+                          color: Colors.redAccent,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'LIVE ON AIR',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 2,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
 
-                          Widget playButton;
-                          if (processingState == ProcessingState.loading ||
-                              processingState == ProcessingState.buffering) {
-                            playButton = const SizedBox(
-                              height: 64,
-                              width: 64,
-                              child: CircularProgressIndicator(color: Color(0xFFEF4444)),
-                            );
-                          } else {
-                            playButton = Container(
-                              decoration: const BoxDecoration(
-                                color: Color(0xFFEF4444),
-                                shape: BoxShape.circle,
-                              ),
-                              child: IconButton(
-                                iconSize: 42,
-                                icon: Icon(
-                                  playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                                  color: Colors.white,
+                  // Album Artwork
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      width: 220,
+                      height: 220,
+                      color: Colors.black26,
+                      child: _albumArtUrl != null && _albumArtUrl!.isNotEmpty
+                          ? Image.network(
+                              _albumArtUrl!,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  Image.asset(_defaultLogoPath, fit: BoxFit.cover),
+                            )
+                          : Image.asset(_defaultLogoPath, fit: BoxFit.cover),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Now Playing Metadata Display
+                  Text(
+                    _songTitle,
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    _artistName,
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Colors.white60,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Audio Controls Block
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0F172A),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.white10),
+                    ),
+                    child: Column(
+                      children: [
+                        // Stream Playback StreamBuilder with Equalizer
+                        StreamBuilder<PlayerState>(
+                          stream: _audioPlayer.playerStateStream,
+                          builder: (context, snapshot) {
+                            final playerState = snapshot.data;
+                            final processingState = playerState?.processingState;
+                            final playing = playerState?.playing ?? false;
+
+                            Widget playButton;
+                            if (processingState == ProcessingState.loading ||
+                                processingState == ProcessingState.buffering) {
+                              playButton = const SizedBox(
+                                height: 64,
+                                width: 64,
+                                child: CircularProgressIndicator(color: Color(0xFFEF4444)),
+                              );
+                            } else {
+                              playButton = Container(
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFFEF4444),
+                                  shape: BoxShape.circle,
                                 ),
-                                onPressed: () async {
-                                  if (playing) {
-                                    await _audioPlayer.pause();
-                                  } else {
-                                    if (_audioPlayer.audioSource == null) {
-                                      await _setAudioSourceWithMetadata();
+                                child: IconButton(
+                                  iconSize: 42,
+                                  icon: Icon(
+                                    playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                                    color: Colors.white,
+                                  ),
+                                  onPressed: () async {
+                                    if (playing) {
+                                      await _audioPlayer.pause();
+                                    } else {
+                                      if (_audioPlayer.audioSource == null) {
+                                        await _setAudioSourceWithMetadata();
+                                      }
+                                      await _audioPlayer.play();
                                     }
-                                    await _audioPlayer.play();
-                                  }
-                                },
-                              ),
-                            );
-                          }
+                                  },
+                                ),
+                              );
+                            }
 
-                          return Column(
+                            return Column(
+                              children: [
+                                // Wide Web-Style Equalizer
+                                WebStyleEqualizer(isPlaying: playing),
+                                const SizedBox(height: 24),
+                                playButton,
+                              ],
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        
+                        // 🚨 In-App Volume Slider Implementation
+                        StreamBuilder<double>(
+                          stream: _audioPlayer.volumeStream,
+                          builder: (context, snapshot) {
+                            final double volume = snapshot.data ?? 1.0;
+                            return Row(
+                              children: [
+                                Icon(
+                                  volume == 0 ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+                                  color: Colors.white54,
+                                  size: 20,
+                                ),
+                                Expanded(
+                                  child: Slider(
+                                    value: volume,
+                                    min: 0.0,
+                                    max: 1.0,
+                                    activeColor: const Color(0xFFEF4444),
+                                    inactiveColor: Colors.white10,
+                                    onChanged: (newVolume) {
+                                      _audioPlayer.setVolume(newVolume);
+                                    },
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Sleep Timer Selector Row
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'SLEEP TIMER:',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white60,
+                                letterSpacing: 1,
+                              ),
+                            ),
+                            DropdownButton<int>(
+                              value: _selectedSleepMinutes,
+                              dropdownColor: const Color(0xFF1E293B),
+                              underline: const SizedBox.shrink(),
+                              style: const TextStyle(color: Colors.white, fontSize: 12),
+                              items: const [
+                                DropdownMenuItem(value: 0, child: Text('Off')),
+                                DropdownMenuItem(value: 15, child: Text('15 Mins')),
+                                DropdownMenuItem(value: 30, child: Text('30 Mins')),
+                                DropdownMenuItem(value: 60, child: Text('1 Hour')),
+                                DropdownMenuItem(value: 90, child: Text('90 Mins')),
+                              ],
+                              onChanged: (value) {
+                                if (value != null) _setSleepTimer(value);
+                              },
+                            ),
+                          ],
+                        ),
+                        if (_selectedSleepMinutes > 0)
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: Text(
+                              'Pausing in ${_formatTimerDisplay(_sleepSecondsRemaining)}',
+                              style: const TextStyle(color: Colors.redAccent, fontSize: 12),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Collapsible Recently Played Section
+                  _buildAccordionHeader(
+                    title: 'Recently Played',
+                    isOpen: _showHistory,
+                    onTap: () => setState(() => _showHistory = !_showHistory),
+                  ),
+                  if (_showHistory)
+                    Container(
+                      margin: const EdgeInsets.only(top: 8),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0F172A),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: _songHistory.isEmpty
+                          ? const Text(
+                              'No recent history available',
+                              style: TextStyle(color: Colors.white38, fontSize: 12),
+                            )
+                          : ListView.separated(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              itemCount: _songHistory.length,
+                              separatorBuilder: (_, __) => const Divider(color: Colors.white10),
+                              itemBuilder: (context, index) {
+                                final track = _songHistory[index];
+                                return Row(
+                                  children: [
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(6),
+                                      child: track['art'] != null && track['art']!.isNotEmpty
+                                          ? Image.network(
+                                              track['art']!,
+                                              width: 38,
+                                              height: 38,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (_, __, ___) => Image.asset(
+                                                _defaultLogoPath,
+                                                width: 38,
+                                                height: 38,
+                                              ),
+                                            )
+                                          : Image.asset(_defaultLogoPath, width: 38, height: 38),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            track['title'] ?? '',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 13,
+                                              color: Colors.white,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          Text(
+                                            track['artist'] ?? '',
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                              color: Colors.white54,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              },
+                            ),
+                    ),
+                  const SizedBox(height: 12),
+
+                  // Collapsible Program Schedule Section
+                  _buildAccordionHeader(
+                    title: 'Program Schedule',
+                    isOpen: _showSchedule,
+                    onTap: () => setState(() => _showSchedule = !_showSchedule),
+                  ),
+                  if (_showSchedule)
+                    Container(
+                      margin: const EdgeInsets.only(top: 8),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0F172A),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: _programSchedule.length,
+                        separatorBuilder: (_, __) => const Divider(color: Colors.white10),
+                        itemBuilder: (context, index) {
+                          final item = _programSchedule[index];
+                          return Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              // Wide Web-Style Equalizer
-                              WebStyleEqualizer(isPlaying: playing),
-                              const SizedBox(height: 24),
-                              playButton,
+                              Text(
+                                item['time'] ?? '',
+                                style: const TextStyle(
+                                  color: Colors.redAccent,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              Text(
+                                item['title'] ?? '',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                ),
+                              ),
                             ],
                           );
                         },
                       ),
-                      const SizedBox(height: 16),
+                    ),
+                  const SizedBox(height: 24),
 
-                      // Sleep Timer Selector Row
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            'SLEEP TIMER:',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white60,
-                              letterSpacing: 1,
-                            ),
-                          ),
-                          DropdownButton<int>(
-                            value: _selectedSleepMinutes,
-                            dropdownColor: const Color(0xFF1E293B),
-                            underline: const SizedBox.shrink(),
-                            style: const TextStyle(color: Colors.white, fontSize: 12),
-                            items: const [
-                              DropdownMenuItem(value: 0, child: Text('Off')),
-                              DropdownMenuItem(value: 15, child: Text('15 Mins')),
-                              DropdownMenuItem(value: 30, child: Text('30 Mins')),
-                              DropdownMenuItem(value: 60, child: Text('1 Hour')),
-                              DropdownMenuItem(value: 90, child: Text('90 Mins')),
-                            ],
-                            onChanged: (value) {
-                              if (value != null) _setSleepTimer(value);
-                            },
-                          ),
-                        ],
+                  // Share App Button
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white10,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                       ),
-                      if (_selectedSleepMinutes > 0)
-                        Align(
-                          alignment: Alignment.centerRight,
+                      icon: const Icon(Icons.share, size: 18, color: Colors.white),
+                      label: const Text(
+                        'SHARE GO RADIO',
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      ),
+                      onPressed: _shareApp,
+                    ),
+                  ),
+
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 20),
+                    child: Divider(color: Colors.white10),
+                  ),
+
+                  // External Radio Directories Grid Section
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'LISTEN ON YOUR FAVORITE APP',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white54,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      childAspectRatio: 3.2,
+                      crossAxisSpacing: 8,
+                      mainAxisSpacing: 8,
+                    ),
+                    itemCount: _directories.length,
+                    itemBuilder: (context, index) {
+                      final dir = _directories[index];
+                      return InkWell(
+                        onTap: () => _launchExternalUrl(dir['url']!),
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0F172A),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.white10),
+                          ),
+                          alignment: Alignment.center,
+                          padding: const EdgeInsets.symmetric(horizontal: 6),
                           child: Text(
-                            'Pausing in ${_formatTimerDisplay(_sleepSecondsRemaining)}',
-                            style: const TextStyle(color: Colors.redAccent, fontSize: 12),
+                            dir['name']!,
+                            textAlign: TextAlign.center,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ),
-                    ],
+                      );
+                    },
                   ),
-                ),
-                const SizedBox(height: 20),
 
-                // Collapsible Recently Played Section
-                _buildAccordionHeader(
-                  title: 'Recently Played',
-                  isOpen: _showHistory,
-                  onTap: () => setState(() => _showHistory = !_showHistory),
-                ),
-                if (_showHistory)
-                  Container(
-                    margin: const EdgeInsets.only(top: 8),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0F172A),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: _songHistory.isEmpty
-                        ? const Text(
-                            'No recent history available',
-                            style: TextStyle(color: Colors.white38, fontSize: 12),
-                          )
-                        : ListView.separated(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: _songHistory.length,
-                            separatorBuilder: (_, _) => const Divider(color: Colors.white10),
-                            itemBuilder: (context, index) {
-                              final track = _songHistory[index];
-                              return Row(
-                                children: [
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(6),
-                                    child: track['art'] != null && track['art']!.isNotEmpty
-                                        ? Image.network(
-                                            track['art']!,
-                                            width: 38,
-                                            height: 38,
-                                            fit: BoxFit.cover,
-                                            errorBuilder: (_, _, _) => Image.asset(
-                                              _defaultLogoPath,
-                                              width: 38,
-                                              height: 38,
-                                            ),
-                                          )
-                                        : Image.asset(_defaultLogoPath, width: 38, height: 38),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          track['title'] ?? '',
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 13,
-                                            color: Colors.white,
-                                          ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                        Text(
-                                          track['artist'] ?? '',
-                                          style: const TextStyle(
-                                            fontSize: 11,
-                                            color: Colors.white54,
-                                          ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              );
-                            },
-                          ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 20),
+                    child: Divider(color: Colors.white10),
                   ),
-                const SizedBox(height: 12),
 
-                // Collapsible Program Schedule Section
-                _buildAccordionHeader(
-                  title: 'Program Schedule',
-                  isOpen: _showSchedule,
-                  onTap: () => setState(() => _showSchedule = !_showSchedule),
-                ),
-                if (_showSchedule)
-                  Container(
-                    margin: const EdgeInsets.only(top: 8),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0F172A),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: ListView.separated(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: _programSchedule.length,
-                      separatorBuilder: (_, _) => const Divider(color: Colors.white10),
-                      itemBuilder: (context, index) {
-                        final item = _programSchedule[index];
-                        return Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              item['time'] ?? '',
-                              style: const TextStyle(
-                                color: Colors.redAccent,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                              ),
-                            ),
-                            Text(
-                              item['title'] ?? '',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-                  ),
-                const SizedBox(height: 24),
-
-                // Share App Button
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white10,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    icon: const Icon(Icons.share, size: 18, color: Colors.white),
-                    label: const Text(
-                      'SHARE GO RADIO',
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                    ),
-                    onPressed: _shareApp,
-                  ),
-                ),
-
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 20),
-                  child: Divider(color: Colors.white10),
-                ),
-
-                // External Radio Directories Grid Section
-                const Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'LISTEN ON YOUR FAVORITE APP',
+                  // Contact Information Footer
+                  const Text(
+                    'CONTACT US',
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
@@ -675,92 +767,73 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
                       letterSpacing: 1.2,
                     ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    childAspectRatio: 3.2,
-                    crossAxisSpacing: 8,
-                    mainAxisSpacing: 8,
+                  const SizedBox(height: 8),
+                  InkWell(
+                    onTap: () => _launchExternalUrl('mailto:support@goradio.com.ng'),
+                    child: const Text(
+                      'support@goradio.com.ng',
+                      style: TextStyle(color: Colors.redAccent, fontSize: 13),
+                    ),
                   ),
-                  itemCount: _directories.length,
-                  itemBuilder: (context, index) {
-                    final dir = _directories[index];
-                    return InkWell(
-                      onTap: () => _launchExternalUrl(dir['url']!),
-                      borderRadius: BorderRadius.circular(8),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF0F172A),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.white10),
+                  const SizedBox(height: 4),
+                  InkWell(
+                    onTap: () => _launchExternalUrl('tel:+2348134839763'),
+                    child: const Text(
+                      '+234 813 483 9763',
+                      style: TextStyle(color: Colors.white70, fontSize: 13),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  InkWell(
+                    onTap: () => _launchExternalUrl('tel:+2348050344913'),
+                    child: const Text(
+                      '+234 805 034 4913',
+                      style: TextStyle(color: Colors.white70, fontSize: 13),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    '© GO RADIO. All Rights Reserved.',
+                    style: TextStyle(color: Colors.white30, fontSize: 11),
+                  ),
+                  const SizedBox(height: 4),
+                  
+                  // 🚨 Play Store Compliance: Privacy & Terms Links
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      TextButton(
+                        onPressed: () => _launchExternalUrl('https://goradio.com.ng/privacy-policy'),
+                        style: TextButton.styleFrom(
+                          minimumSize: Size.zero,
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
-                        alignment: Alignment.center,
-                        padding: const EdgeInsets.symmetric(horizontal: 6),
-                        child: Text(
-                          dir['name']!,
-                          textAlign: TextAlign.center,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
+                        child: const Text(
+                          'Privacy Policy',
+                          style: TextStyle(color: Colors.white54, fontSize: 11),
                         ),
                       ),
-                    );
-                  },
-                ),
-
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 20),
-                  child: Divider(color: Colors.white10),
-                ),
-
-                // Contact Information Footer
-                const Text(
-                  'CONTACT US',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white54,
-                    letterSpacing: 1.2,
+                      const Text(
+                        '|',
+                        style: TextStyle(color: Colors.white30, fontSize: 11),
+                      ),
+                      TextButton(
+                        onPressed: () => _launchExternalUrl('https://goradio.com.ng/terms-of-service'),
+                        style: TextButton.styleFrom(
+                          minimumSize: Size.zero,
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: const Text(
+                          'Terms of Service',
+                          style: TextStyle(color: Colors.white54, fontSize: 11),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                const SizedBox(height: 8),
-                InkWell(
-                  onTap: () => _launchExternalUrl('mailto:support@goradio.com.ng'),
-                  child: const Text(
-                    'support@goradio.com.ng',
-                    style: TextStyle(color: Colors.redAccent, fontSize: 13),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                InkWell(
-                  onTap: () => _launchExternalUrl('tel:+2348134839763'),
-                  child: const Text(
-                    '+234 813 483 9763',
-                    style: TextStyle(color: Colors.white70, fontSize: 13),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                InkWell(
-                  onTap: () => _launchExternalUrl('tel:+2348050344913'),
-                  child: const Text(
-                    '+234 805 034 4913',
-                    style: TextStyle(color: Colors.white70, fontSize: 13),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  '© GO RADIO. All Rights Reserved.',
-                  style: TextStyle(color: Colors.white30, fontSize: 11),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
