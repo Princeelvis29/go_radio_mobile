@@ -16,7 +16,7 @@ Future<void> main() async {
     androidNotificationChannelId: 'com.goradio.app.channel.audio',
     androidNotificationChannelName: 'Go Radio Live Playback',
     androidNotificationOngoing: true,
-    androidShowNotificationBadge: 'mipmap/launcher_icon',
+    androidShowNotificationBadge: true,
   );
 
   runApp(const GoRadioApp());
