@@ -12,9 +12,10 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
 
+    <!-- 🚨 FIX: Restored to ${applicationName} so the Flutter engine boots properly 🚨 -->
     <application
         android:label="go_radio_mobile"
-        android:name="com.ryanheise.audioservice.AudioServiceApplication"
+        android:name="${applicationName}"
         android:icon="@mipmap/launcher_icon"
         android:usesCleartextTraffic="true">
         
