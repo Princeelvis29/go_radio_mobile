@@ -8,6 +8,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 Future<void> main() async {
+  // ⚠️ MANDATORY: Prevents release build crashes when initializing background audio
   WidgetsFlutterBinding.ensureInitialized();
   
   // Initialize Background Audio & OS Lock Screen Controls

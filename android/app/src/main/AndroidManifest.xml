@@ -4,6 +4,9 @@
     <!-- Added permission for streaming audio and fetching API data -->
     <uses-permission android:name="android.permission.INTERNET"/>
     
+    <!-- ⚠️ REQUIRED FOR ANDROID 13 & 14 TO PREVENT INSTANT CRASH ON LAUNCH -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    
     <!-- REQUIRED PERMISSIONS FOR LOCK SCREEN & BACKGROUND AUDIO -->
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
