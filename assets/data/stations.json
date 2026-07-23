@@ -1,0 +1,34 @@
+{
+  "status": "success",
+  "data": {
+    "featured_stations": [
+      {
+        "id": 1,
+        "name": "GoRadio Premium",
+        "tagline": "Today's Biggest Hits",
+        "description": "Broadcasting the top charts 24/7. Your number one source for premium entertainment.",
+        "stream_url": "https://your-stream-url.com/premium",
+        "cover_art": "assets/images/premium_cover.png",
+        "category": "Pop",
+        "is_active": true
+      },
+      {
+        "id": 2,
+        "name": "Smooth Jazz Lounge",
+        "tagline": "Relax and Unwind",
+        "description": "The best smooth jazz to keep you relaxed throughout your workday.",
+        "stream_url": "https://your-stream-url.com/jazz",
+        "cover_art": "assets/images/jazz_cover.png",
+        "category": "Jazz",
+        "is_active": false
+      }
+    ],
+    "categories": [
+      "Pop",
+      "Jazz",
+      "News",
+      "Afrobeats",
+      "Talk Show"
+    ]
+  }
+}
