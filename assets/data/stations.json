@@ -20,7 +20,17 @@
         "stream_url": "https://boxradio-edge-00.streamafrica.net/gold",
         "cover_art": "assets/images/jazz_cover.png",
         "category": "Pop",
-        "is_active": false
+        "is_active": true
+      }
+      {
+        "id": 3,
+        "name": "Afrofusion Amapiano",
+        "tagline": "Best Amapiano",
+        "description": "Tune up the sound and enjoy Afrofusion Amapiano online music.",
+        "stream_url": "https://boxradio-edge-00.streamafrica.net/amp",
+        "cover_art": "assets/images/jazz_cover.png",
+        "category": "Jazz",
+        "is_active": true
       }
     ],
     "categories": [
