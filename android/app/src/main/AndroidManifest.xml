@@ -12,12 +12,14 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
 
-    <!-- 🚨 FIX: Restored to ${applicationName} so the Flutter engine boots properly 🚨 -->
+    <!-- 🚨 FIX: Disabled Auto-Backup to prevent WorkDatabase crashes on reinstall 🚨 -->
     <application
         android:label="go_radio_mobile"
         android:name="${applicationName}"
         android:icon="@mipmap/launcher_icon"
-        android:usesCleartextTraffic="true">
+        android:usesCleartextTraffic="true"
+        android:allowBackup="false"
+        android:fullBackupContent="false">
         
         <!-- 🚨 FIX: Reverted back to .MainActivity so the Flutter engine boots up properly 🚨 -->
         <activity
