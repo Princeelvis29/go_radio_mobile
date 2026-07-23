@@ -5,8 +5,8 @@
       {
         "id": 1,
         "name": "GoRadio Premium",
-        "tagline": "Today's Biggest Hits",
-        "description": "Broadcasting the top charts 24/7. Your number one source for premium entertainment.",
+        "tagline": "Best Naija Afrobeat",
+        "description": "Tune up the sound and enjoy GoRadio unlimited online music.",
         "stream_url": "https://online.goradio.com.ng/listen/gr/radio.mp3",
         "cover_art": "assets/images/premium_cover.png",
         "category": "Afrobeats",
@@ -14,12 +14,12 @@
       },
       {
         "id": 2,
-        "name": "Smooth Jazz Lounge",
-        "tagline": "Relax and Unwind",
-        "description": "The best smooth jazz to keep you relaxed throughout your workday.",
-        "stream_url": "https://your-stream-url.com/jazz",
+        "name": "Afrofusion Gold",
+        "tagline": "Classic African",
+        "description": "The best AfroFusion to keep you relaxed throughout your workday.",
+        "stream_url": "https://boxradio-edge-00.streamafrica.net/gold",
         "cover_art": "assets/images/jazz_cover.png",
-        "category": "Jazz",
+        "category": "Pop",
         "is_active": false
       }
     ],
