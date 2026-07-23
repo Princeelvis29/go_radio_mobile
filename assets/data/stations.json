@@ -33,7 +33,7 @@
         "is_active": true
       },
        {
-        "id": 3,
+        "id": 4,
         "name": "Classical Radio",
         "tagline": "Best Classical Musics",
         "description": "Tune up the sound and enjoy Classical Radio online music.",
@@ -43,7 +43,7 @@
         "is_active": true
       },
       {
-        "id": 3,
+        "id": 5,
         "name": "Afrofusion Naija",
         "tagline": "Naija Best Afrofusion Musics",
         "description": "Tune up the sound and enjoy Afrofusion Naija Radio online music.",
