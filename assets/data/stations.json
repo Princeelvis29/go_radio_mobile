@@ -7,9 +7,9 @@
         "name": "GoRadio Premium",
         "tagline": "Today's Biggest Hits",
         "description": "Broadcasting the top charts 24/7. Your number one source for premium entertainment.",
-        "stream_url": "https://your-stream-url.com/premium",
+        "stream_url": "https://online.goradio.com.ng/listen/gr/radio.mp3",
         "cover_art": "assets/images/premium_cover.png",
-        "category": "Pop",
+        "category": "Afrobeats",
         "is_active": true
       },
       {
