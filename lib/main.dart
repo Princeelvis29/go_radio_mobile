@@ -428,7 +428,7 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                Image.asset(_defaultLogoPath, height: 50, errorBuilder: (_, __, ___) => const Icon(Icons.radio, size: 48, color: Colors.white)),
+                Image.asset(_defaultLogoPath, height: 50, errorBuilder: (_, _, _) => const Icon(Icons.radio, size: 48, color: Colors.white)),
                 const SizedBox(height: 12),
                 const Text('GO RADIO', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
               ],
@@ -496,7 +496,7 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
           ClipRRect(
             borderRadius: BorderRadius.circular(4),
             child: _albumArtUrl != null && _albumArtUrl!.isNotEmpty
-                ? Image.network(_albumArtUrl!, width: 40, height: 40, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Image.asset(_defaultLogoPath, width: 40, height: 40))
+                ? Image.network(_albumArtUrl!, width: 40, height: 40, fit: BoxFit.cover, errorBuilder: (_, _, _) => Image.asset(_defaultLogoPath, width: 40, height: 40))
                 : Image.asset(_defaultLogoPath, width: 40, height: 40, fit: BoxFit.cover),
           ),
           const SizedBox(width: 12),
@@ -788,7 +788,7 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
                             itemCount: _songHistory.length,
-                            separatorBuilder: (_, __) => const Divider(color: Colors.white10),
+                            separatorBuilder: (_, _) => const Divider(color: Colors.white10),
                             itemBuilder: (context, index) {
                               final track = _songHistory[index];
                               return Row(
@@ -801,7 +801,7 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
                                             width: 38,
                                             height: 38,
                                             fit: BoxFit.cover,
-                                            errorBuilder: (_, __, ___) => Image.asset(
+                                            errorBuilder: (_, _, _) => Image.asset(
                                               _defaultLogoPath,
                                               width: 38,
                                               height: 38,
@@ -859,7 +859,7 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       itemCount: _programSchedule.length,
-                      separatorBuilder: (_, __) => const Divider(color: Colors.white10),
+                      separatorBuilder: (_, _) => const Divider(color: Colors.white10),
                       itemBuilder: (context, index) {
                         final item = _programSchedule[index];
                         return Row(
@@ -1306,7 +1306,7 @@ class FavoriteScreen extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.favorite_border, size: 80, color: Colors.white.withOpacity(0.2)),
+          Icon(Icons.favorite_border, size: 80, color: Colors.white.withValues(alpha: 0.2)),
           const SizedBox(height: 16),
           const Text(
             'Whoops!',

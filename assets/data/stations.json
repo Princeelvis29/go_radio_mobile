@@ -8,7 +8,7 @@
         "tagline": "Best Naija Afrobeat",
         "description": "Tune up the sound and enjoy GoRadio unlimited online music.",
         "stream_url": "https://online.goradio.com.ng/listen/gr/radio.mp3",
-        "cover_art": "assets/images/premium_cover.png",
+        "cover_art": "assets/images/goradio.png",
         "category": "Afrobeats",
         "is_active": true
       },
@@ -18,18 +18,38 @@
         "tagline": "Classic African",
         "description": "The best AfroFusion to keep you relaxed throughout your workday.",
         "stream_url": "https://boxradio-edge-00.streamafrica.net/gold",
-        "cover_art": "assets/images/jazz_cover.png",
+        "cover_art": "assets/images/gold.png",
         "category": "Pop",
         "is_active": true
-      }
+      },
       {
         "id": 3,
         "name": "Afrofusion Amapiano",
         "tagline": "Best Amapiano",
         "description": "Tune up the sound and enjoy Afrofusion Amapiano online music.",
         "stream_url": "https://boxradio-edge-00.streamafrica.net/amp",
-        "cover_art": "assets/images/jazz_cover.png",
+        "cover_art": "assets/images/amapiano.png",
         "category": "Jazz",
+        "is_active": true
+      },
+       {
+        "id": 3,
+        "name": "Classical Radio",
+        "tagline": "Best Classical Musics",
+        "description": "Tune up the sound and enjoy Classical Radio online music.",
+        "stream_url": "https://boxradio-edge-00.streamafrica.net/classical",
+        "cover_art": "assets/images/classic.png",
+        "category": "Jazz",
+        "is_active": true
+      },
+      {
+        "id": 3,
+        "name": "Afrofusion Naija",
+        "tagline": "Naija Best Afrofusion Musics",
+        "description": "Tune up the sound and enjoy Afrofusion Naija Radio online music.",
+        "stream_url": "https://boxradio-edge-00.streamafrica.net/classical",
+        "cover_art": "assets/images/afronaija.png",
+        "category": "Afrobeats",
         "is_active": true
       }
     ],
