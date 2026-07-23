@@ -65,10 +65,10 @@
             android:name="flutterEmbedding"
             android:value="2" />
             
-        <!-- REQUIRED FOR GOOGLE ADMOB -->
+        <!-- REQUIRED FOR GOOGLE ADMOB (REAL APP ID ADDED) -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="ca-app-pub-3940256099942544~3347511713"/>
+            android:value="ca-app-pub-5183642186046950~9968091563"/>
             
     </application>
     
