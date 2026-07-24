@@ -60,6 +60,9 @@ class RadioPlayerScreen extends StatefulWidget {
 class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
   int _currentIndex = 0;
 
+  // 🚨 Added the _currentStation variable to track the active station object
+  Station? _currentStation;
+
   // 🚨 Converted _streamUrl to a dynamic variable so we can change it on tap
   String _currentStreamUrl = 'https://online.goradio.com.ng/listen/gr/radio.mp3';
   static const String _azuracastApiUrl = 'https://online.goradio.com.ng/api/nowplaying/1';
@@ -158,6 +161,7 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
     _metadataTimer?.cancel();
 
     setState(() {
+      _currentStation = station; // 🚨 Store the active station object
       _currentStreamUrl = station.streamUrl;
       _songTitle = station.name;
       _artistName = station.tagline;
@@ -596,6 +600,8 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
                   ],
                 ),
                 const SizedBox(height: 20),
+                
+                // 🚨 INSERTED NEW CLIPRRECT CODE HERE
                 ClipRRect(
                   borderRadius: BorderRadius.circular(16),
                   child: Container(
@@ -606,12 +612,32 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
                         ? Image.network(
                             _albumArtUrl!,
                             fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) =>
-                                Image.asset(_defaultLogoPath, fit: BoxFit.cover),
+                            errorBuilder: (context, error, stackTrace) {
+                              String fallbackAsset = _currentStation?.coverArt ?? 'assets/logo.png';
+                              return Image.asset(
+                                fallbackAsset,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) => const Icon(
+                                  Icons.radio,
+                                  size: 80,
+                                  color: Colors.white30,
+                                ),
+                              );
+                            },
                           )
-                        : Image.asset(_defaultLogoPath, fit: BoxFit.cover),
+                        : Image.asset(
+                            _currentStation?.coverArt ?? 'assets/logo.png',
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) => const Icon(
+                              Icons.radio,
+                              size: 80,
+                              color: Colors.white30,
+                            ),
+                          ),
                   ),
                 ),
+                // 🚨 END OF NEW CLIPRRECT CODE
+                
                 const SizedBox(height: 20),
                 Text(
                   _songTitle,
