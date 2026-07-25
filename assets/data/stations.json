@@ -91,6 +91,16 @@
         "cover_art": "assets/images/gospel.png",
         "category": "Gospel",
         "is_active": true
+      },
+      {
+        "id": 10,
+        "name": "Rave FM",
+        "tagline": "Defining the moment",
+        "description": "Defining the moment",
+        "stream_url": "https://stream.zenolive.com/0fxekubhg6quv",
+        "cover_art": "assets/images/rave.png",
+        "category": "News",
+        "is_active": true
       }
     ],
     "categories": [
