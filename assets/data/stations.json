@@ -61,6 +61,16 @@
         "cover_art": "assets/images/spirit.png",
         "category": "Pop",
         "is_active": true
+      },
+      {
+        "id": 7,
+        "name": "Voice of Nigeria",
+        "tagline": "The authoritative choice",
+        "description": "Voice of Nigeria is a radio station dedicated to news from Nigeria, Africa and around the world. It broadcasts in 8 different languages, including English, French, Arabic, Igbo and Yoruba.",
+        "stream_url": "http://50.116.99.96:8000/stream",
+        "cover_art": "assets/images/von.png",
+        "category": "News",
+        "is_active": true
       }
     ],
     "categories": [
