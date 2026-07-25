@@ -111,6 +111,16 @@
         "cover_art": "assets/images/air.png",
         "category": "Gospel",
         "is_active": true
+      },
+      {
+        "id": 12,
+        "name": "Beat FM Lagos",
+        "tagline": "Beat FM Lagos",
+        "description": "Beat FM Lagos",
+        "stream_url": "https://beatfmlagos-atunwadigital.streamguys1.com/beatfmlagos",
+        "cover_art": "assets/images/beat.png",
+        "category": "Talk Show",
+        "is_active": true
       }
     ],
     "categories": [
