@@ -101,6 +101,16 @@
         "cover_art": "assets/images/rave.png",
         "category": "News",
         "is_active": true
+      },
+      {
+        "id": 10,
+        "name": "Air Gospel",
+        "tagline": "We are Inspired by Music and God",
+        "description": "We are Inspired by Music and God",
+        "stream_url": "https://stream.zeno.fm/qkgrhugy908uv",
+        "cover_art": "assets/images/air.png",
+        "category": "Gospel",
+        "is_active": true
       }
     ],
     "categories": [
