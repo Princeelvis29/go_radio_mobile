@@ -81,6 +81,16 @@
         "cover_art": "assets/images/bounce.png",
         "category": "News",
         "is_active": true
+      },
+      {
+        "id": 9,
+        "name": "Afrobeats Gospel Radio",
+        "tagline": "The Vibrant Fusion of Faith and Rhythm",
+        "description": "The Vibrant Fusion of Faith and Rhythm",
+        "stream_url": "https://stream.zeno.fm/4ukgzkb5k3vvv",
+        "cover_art": "assets/images/gospel.png",
+        "category": "Gospel",
+        "is_active": true
       }
     ],
     "categories": [
@@ -88,7 +98,8 @@
       "Jazz",
       "News",
       "Afrobeats",
-      "Talk Show"
+      "Talk Show",
+      "Gospel"
     ]
   }
 }
