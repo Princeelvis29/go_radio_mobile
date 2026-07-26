@@ -141,6 +141,16 @@
         "cover_art": "assets/images/jamz.png",
         "category": "Afrobeats",
         "is_active": true
+      },
+      {
+        "id": 15,
+        "name": "ZENTS FM",
+        "tagline": "Africa's Best Variety",
+        "description": "Africa's Best Variety",
+        "stream_url": "https://stream.zeno.fm/2itawnrjclivv",
+        "cover_art": "assets/images/zents.png",
+        "category": "Talk Show",
+        "is_active": true
       }
     ],
     "categories": [
