@@ -211,6 +211,16 @@
         "cover_art": "assets/images/jungle.png",
         "category": "Afrobeats",
         "is_active": true
+      },
+      {
+        "id": 22,
+        "name": "Lagos Talks FM",
+        "tagline": "Let's Get Talking",
+        "description": "Let's Get Talking",
+        "stream_url": "http://lagostalks.atunwadigital.streamguys1.com/lagostalks",
+        "cover_art": "assets/images/lagtalk.png",
+        "category": "Talk Show",
+        "is_active": true
       }
     ],
     "categories": [
