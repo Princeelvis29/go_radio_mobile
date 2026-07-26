@@ -191,6 +191,16 @@
         "cover_art": "assets/images/Gospotainment.png",
         "category": "Gospel",
         "is_active": true
+      },
+      {
+        "id": 20,
+        "name": "Cool FM 96.9 Lagos",
+        "tagline": "Your #1 Hit Music Station",
+        "description": "Your #1 Hit Music Station",
+        "stream_url": "https://coolfmlagos969-atunwadigital.streamguys1.com/coolfmlagos969",
+        "cover_art": "assets/images/cool.png",
+        "category": "Gospel",
+        "is_active": true
       }
     ],
     "categories": [
