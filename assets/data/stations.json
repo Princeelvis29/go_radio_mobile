@@ -201,6 +201,16 @@
         "cover_art": "assets/images/cool.png",
         "category": "Afrobeats",
         "is_active": true
+      },
+      {
+        "id": 21,
+        "name": "JUNGLE RADIO",
+        "tagline": "Non-Stop Afrobeats Live from Lagos Nigeria",
+        "description": "Non-Stop Afrobeats Live from Lagos Nigeria",
+        "stream_url": "https://stream.afrobeatsdistro.com/stream",
+        "cover_art": "assets/images/jungle.png",
+        "category": "Afrobeats",
+        "is_active": true
       }
     ],
     "categories": [
