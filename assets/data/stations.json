@@ -151,6 +151,16 @@
         "cover_art": "assets/images/zents.png",
         "category": "Talk Show",
         "is_active": true
+      },
+      {
+        "id": 16,
+        "name": "Space",
+        "tagline": "Setting new standards in Broadcasting",
+        "description": "Setting new standards in Broadcasting",
+        "stream_url": "https://stream.zeno.fm/79hmhafteg0uv",
+        "cover_art": "assets/images/Space.png",
+        "category": "Talk Show",
+        "is_active": true
       }
     ],
     "categories": [
