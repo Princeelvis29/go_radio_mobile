@@ -121,6 +121,16 @@
         "cover_art": "assets/images/beat.png",
         "category": "Talk Show",
         "is_active": true
+      },
+      {
+        "id": 13,
+        "name": "Naija FM Lagos",
+        "tagline": "Na We Radio",
+        "description": "Na We Radio",
+        "stream_url": "https://naijafmlagos-atunwadigital.streamguys1.com/naijafmlagos",
+        "cover_art": "assets/images/Naija.png",
+        "category": "Talk Show",
+        "is_active": true
       }
     ],
     "categories": [
