@@ -181,6 +181,16 @@
         "cover_art": "assets/images/grove.png",
         "category": "Pop",
         "is_active": true
+      },
+      {
+        "id": 19,
+        "name": "Gospotainment Radio",
+        "tagline": "Your Urban gospel music radio station",
+        "description": "Your Urban gospel music radio station",
+        "stream_url": "https://radio.gotright.net/radio/8000/radio.mp3",
+        "cover_art": "assets/images/Gospotainment.png",
+        "category": "Gospel",
+        "is_active": true
       }
     ],
     "categories": [
