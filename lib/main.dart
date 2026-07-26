@@ -397,7 +397,8 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
             _buildLiveRadioTab(),
             // 🚨 Pass the play method to the ExploreScreen
             ExploreScreen(onStationSelected: _playSelectedStation),
-            const CategoryScreen(), 
+            // 🚨 Pass the play method to the CategoryScreen too
+            CategoryScreen(onStationSelected: _playSelectedStation), 
             const FavoriteScreen(), 
           ],
         ),
@@ -1257,10 +1258,13 @@ class ExploreScreen extends StatelessWidget {
 }
 
 class CategoryScreen extends StatelessWidget {
-  const CategoryScreen({super.key});
+  final Function(Station) onStationSelected;
+
+  const CategoryScreen({super.key, required this.onStationSelected});
 
   @override
   Widget build(BuildContext context) {
+    // 🚨 I added Gospel to your UI array here!
     final List<Map<String, dynamic>> categories = [
       {'title': 'Music', 'color': Colors.purple.shade400, 'icon': Icons.music_note},
       {'title': 'Classic', 'color': Colors.brown.shade400, 'icon': Icons.album},
@@ -1268,6 +1272,7 @@ class CategoryScreen extends StatelessWidget {
       {'title': 'Newscast', 'color': Colors.blueGrey.shade400, 'icon': Icons.article},
       {'title': 'Talk Show', 'color': Colors.deepOrange.shade400, 'icon': Icons.mic},
       {'title': 'Afrobeats', 'color': Colors.green.shade600, 'icon': Icons.public},
+      {'title': 'Gospel', 'color': Colors.orangeAccent.shade400, 'icon': Icons.church}, 
     ];
 
     return ListView(
@@ -1290,28 +1295,43 @@ class CategoryScreen extends StatelessWidget {
           itemCount: categories.length,
           itemBuilder: (context, index) {
             final category = categories[index];
-            return Container(
-              decoration: BoxDecoration(
-                color: category['color'],
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: const [
-                  BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 3)),
-                ],
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(category['icon'], size: 40, color: Colors.white),
-                  const SizedBox(height: 12),
-                  Text(
-                    category['title'],
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      fontSize: 16,
+            return InkWell(
+              onTap: () {
+                // 🚨 When tapped, push the new detail screen
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => CategoryDetailScreen(
+                      categoryName: category['title'],
+                      onStationSelected: onStationSelected,
                     ),
                   ),
-                ],
+                );
+              },
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: category['color'],
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: const [
+                    BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 3)),
+                  ],
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(category['icon'], size: 40, color: Colors.white),
+                    const SizedBox(height: 12),
+                    Text(
+                      category['title'],
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             );
           },
@@ -1319,6 +1339,111 @@ class CategoryScreen extends StatelessWidget {
         const SizedBox(height: 24),
         const AdBannerWidget(),
       ],
+    );
+  }
+}
+
+// 🚨 BRAND NEW SCREEN: This displays the filtered stations for the tapped category
+class CategoryDetailScreen extends StatelessWidget {
+  final String categoryName;
+  final Function(Station) onStationSelected;
+
+  const CategoryDetailScreen({
+    super.key,
+    required this.categoryName,
+    required this.onStationSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          categoryName,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: const Color(0xFF1E293B),
+        elevation: 0,
+      ),
+      body: FutureBuilder<List<Station>>(
+        future: StationService.loadStations(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator(color: Color(0xFFEF4444)));
+          } else if (snapshot.hasError) {
+            return Center(child: Text("Error: ${snapshot.error}", style: const TextStyle(color: Colors.red)));
+          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return const Center(child: Text("No stations found.", style: TextStyle(color: Colors.white54)));
+          }
+
+          // 🚨 Smart filtering logic to match JSON categories with UI categories
+          final categoryStations = snapshot.data!.where((station) {
+            if (!station.isActive) return false;
+            
+            String sCat = station.category.toLowerCase();
+            String uiCat = categoryName.toLowerCase();
+            
+            if (sCat == uiCat) return true;
+            if (uiCat == 'newscast' && sCat.contains('news')) return true;
+            if (uiCat == 'classic' && (sCat == 'jazz' || sCat == 'classical')) return true;
+            if (uiCat == 'music' && (sCat == 'pop' || sCat == 'jazz' || sCat == 'afrobeats' || sCat == 'gospel')) return true;
+            
+            return sCat.contains(uiCat) || uiCat.contains(sCat);
+          }).toList();
+
+          if (categoryStations.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.radio_outlined, size: 64, color: Colors.white.withOpacity(0.2)),
+                  const SizedBox(height: 16),
+                  Text("No stations in $categoryName yet.", style: const TextStyle(color: Colors.white54)),
+                ],
+              ),
+            );
+          }
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(16.0),
+            itemCount: categoryStations.length,
+            itemBuilder: (context, index) {
+              final station = categoryStations[index];
+              return Card(
+                color: const Color(0xFF1E293B),
+                margin: const EdgeInsets.only(bottom: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                child: ListTile(
+                  contentPadding: const EdgeInsets.all(12),
+                  leading: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.asset(
+                      station.coverArt,
+                      width: 56,
+                      height: 56,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        width: 56,
+                        height: 56,
+                        color: const Color(0xFF0F172A),
+                        child: const Icon(Icons.radio, color: Colors.white30),
+                      ),
+                    ),
+                  ),
+                  title: Text(station.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  subtitle: Text(station.tagline, style: const TextStyle(color: Colors.white54, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  trailing: const Icon(Icons.play_circle_fill, color: Color(0xFFEF4444), size: 32),
+                  onTap: () {
+                    // Play the station, then pop back to the home screen
+                    onStationSelected(station);
+                    Navigator.pop(context); 
+                  },
+                ),
+              );
+            },
+          );
+        },
+      ),
     );
   }
 }
