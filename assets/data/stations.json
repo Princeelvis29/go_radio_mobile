@@ -161,6 +161,26 @@
         "cover_art": "assets/images/Space.png",
         "category": "Talk Show",
         "is_active": true
+      },
+      {
+        "id": 17,
+        "name": "Naija Hits FM",
+        "tagline": "We Play Naija Hits",
+        "description": "We Play Naija Hits",
+        "stream_url": "https://stream.zeno.fm/chwctu2wvmzuv",
+        "cover_art": "assets/images/hits.png",
+        "category": "Afrobeats",
+        "is_active": true
+      },
+      {
+        "id": 18,
+        "name": "GROOVE FM",
+        "tagline": "In Tune WIth You",
+        "description": "In Tune WIth You",
+        "stream_url": "https://stream.zeno.fm/ii6gvsu4evfvv",
+        "cover_art": "assets/images/grove.png",
+        "category": "Pop",
+        "is_active": true
       }
     ],
     "categories": [
