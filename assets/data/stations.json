@@ -131,6 +131,16 @@
         "cover_art": "assets/images/Naija.png",
         "category": "Talk Show",
         "is_active": true
+      },
+      {
+        "id": 14,
+        "name": "Jamz FM",
+        "tagline": "real radio . real people",
+        "description": "real radio . real people",
+        "stream_url": "https://live.ibidtech.com/listen/jamz_fm/live.mp3",
+        "cover_art": "assets/images/jamz.png",
+        "category": "Afrobeats",
+        "is_active": true
       }
     ],
     "categories": [
