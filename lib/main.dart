@@ -11,6 +11,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:palette_generator/palette_generator.dart'; // 🚨 Added Palette Generator
 
 import 'models/station_model.dart';
 import 'services/station_service.dart';
@@ -75,7 +76,6 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
   Timer? _sleepTimer;
   Timer? _countdownTimer;
   
-  // 🚨 Alarm Clock Variables
   Timer? _alarmClockTimer;
   TimeOfDay? _alarmTime;
   bool _isAlarmActive = false;
@@ -91,6 +91,9 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
 
   bool _showHistory = false;
   bool _showSchedule = false;
+
+  // 🚨 Dynamic color variable
+  Color _dominantColor = const Color(0xFF1E293B);
 
   final List<Map<String, String>> _programSchedule = const [
     {'time': '06:00 - 10:00', 'title': 'Morning Drive'},
@@ -129,9 +132,32 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
     _initAudioPlayer();
     _fetchNowPlaying();
     _metadataTimer = Timer.periodic(const Duration(seconds: 15), (_) => _fetchNowPlaying());
-    
-    // 🚨 Initialize Alarm Checker (checks the time every 30 seconds)
     _alarmClockTimer = Timer.periodic(const Duration(seconds: 30), (_) => _checkAlarm());
+  }
+
+  // 🚨 Dynamic Palette Extraction Logic
+  Future<void> _updatePalette() async {
+    try {
+      ImageProvider imageProvider;
+      if (_albumArtUrl != null && _albumArtUrl!.isNotEmpty) {
+        imageProvider = NetworkImage(_albumArtUrl!);
+      } else {
+        imageProvider = AssetImage(_currentStation?.coverArt ?? _defaultLogoPath);
+      }
+
+      final PaletteGenerator generator = await PaletteGenerator.fromImageProvider(
+        imageProvider,
+        maximumColorCount: 10,
+      );
+
+      if (mounted) {
+        setState(() {
+          _dominantColor = generator.dominantColor?.color ?? const Color(0xFF1E293B);
+        });
+      }
+    } catch (e) {
+      debugPrint('Error generating palette: $e');
+    }
   }
 
   Future<void> _initPrefs() async {
@@ -144,7 +170,6 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
     final String? savedArtist = _prefs.getString('last_artist_name');
     final String? savedArt = _prefs.getString('last_album_art');
     
-    // Load saved alarm settings
     final int? alarmHour = _prefs.getInt('alarm_hour');
     final int? alarmMinute = _prefs.getInt('alarm_minute');
     final bool alarmActive = _prefs.getBool('alarm_active') ?? false;
@@ -167,6 +192,7 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
           _isAlarmActive = alarmActive;
         }
       });
+      _updatePalette(); // Generate palette for loaded state
     }
   }
 
@@ -179,7 +205,6 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
     }
   }
   
-  // 🚨 Save Alarm state to memory
   void _saveAlarmState() {
     if (_alarmTime != null) {
       _prefs.setInt('alarm_hour', _alarmTime!.hour);
@@ -188,7 +213,6 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
     }
   }
 
-  // 🚨 Alarm Logic: Triggers playback when the time matches
   void _checkAlarm() async {
     if (_isAlarmActive && _alarmTime != null) {
       final now = TimeOfDay.now();
@@ -201,7 +225,7 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
           
           if (mounted) {
             setState(() {
-              _isAlarmActive = false; // Turn off alarm after it triggers
+              _isAlarmActive = false;
               _saveAlarmState();
             });
             ScaffoldMessenger.of(context).showSnackBar(
@@ -260,6 +284,7 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
       _isLoadingMetaData = false;
     });
 
+    _updatePalette(); // Generate new palette when switching stations
     _saveLastPlayedState(station.streamUrl, station.name, station.tagline, station.coverArt);
 
     try {
@@ -304,7 +329,7 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
     _metadataTimer?.cancel();
     _sleepTimer?.cancel();
     _countdownTimer?.cancel();
-    _alarmClockTimer?.cancel(); // Dispose alarm checker
+    _alarmClockTimer?.cancel(); 
     _audioPlayer.dispose();
     super.dispose();
   }
@@ -341,6 +366,8 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
         }
 
         if (mounted) {
+          final bool albumArtChanged = _albumArtUrl != artUrl;
+          
           setState(() {
             _songTitle = title;
             _artistName = artist;
@@ -351,6 +378,7 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
 
           if (_currentStation == null) {
             _saveLastPlayedState(_currentStreamUrl, title, artist, artUrl);
+            if (albumArtChanged) _updatePalette(); // Generate new palette if live track changes
           }
 
           if (!_audioPlayer.playing) {
@@ -689,11 +717,20 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(20.0),
         child: Center(
-          child: Container(
+          // 🚨 Upgraded to AnimatedContainer for dynamic color blending
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 800),
             constraints: const BoxConstraints(maxWidth: 450),
             padding: const EdgeInsets.all(20.0),
             decoration: BoxDecoration(
-              color: const Color(0xFF1E293B),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  _dominantColor.withOpacity(0.6),
+                  const Color(0xFF1E293B),
+                ],
+              ),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(color: Colors.white10),
               boxShadow: const [
@@ -923,7 +960,6 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
                             style: const TextStyle(color: Colors.redAccent, fontSize: 12),
                           ),
                         ),
-                      // 🚨 NEW ALARM CLOCK UI IMPLEMENTATION
                       const SizedBox(height: 6),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,

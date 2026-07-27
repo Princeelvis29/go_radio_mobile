@@ -44,6 +44,7 @@ dependencies:
   flutter_launcher_icons: ^0.14.4
   google_mobile_ads: ^9.0.0
   shared_preferences: ^2.5.5
+  palette_generator: ^0.3.3+7
 
 dev_dependencies:
   flutter_test:
