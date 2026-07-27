@@ -228,7 +228,18 @@
         "tagline": "Best stories, best songs",
         "description": "Best stories, best songs",
         "stream_url": "https://stream.zeno.fm/pqpqbcgxpfhvv",
+        "cover_art": "assets/images/dominion.png",
         "category": "Talk Show",
+        "is_active": true
+      },
+      {
+        "id": 24,
+        "name": "Eagles FM Abuja",
+        "tagline": "Eagles 102.3 FM, Radio experience you can count on",
+        "description": "Eagles 102.3 FM, Radio experience you can count on",
+        "stream_url": "https://eagles1023fmabuja-atunwadigital.streamguys1.com/eagles1023fmabuja",
+        "cover_art": "assets/images/eagle.png",
+        "category": "Education",
         "is_active": true
       }
     ],
