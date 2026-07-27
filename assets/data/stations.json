@@ -221,6 +221,15 @@
         "cover_art": "assets/images/lagtalk.png",
         "category": "Talk Show",
         "is_active": true
+      },
+      {
+        "id": 23,
+        "name": "Dominion 106.1FM",
+        "tagline": "Best stories, best songs",
+        "description": "Best stories, best songs",
+        "stream_url": "https://stream.zeno.fm/pqpqbcgxpfhvv",
+        "category": "Talk Show",
+        "is_active": true
       }
     ],
     "categories": [
@@ -229,7 +238,8 @@
       "News",
       "Afrobeats",
       "Talk Show",
-      "Gospel"
+      "Gospel",
+      "Education"
     ]
   }
 }
