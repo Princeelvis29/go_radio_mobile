@@ -10,7 +10,7 @@ import 'package:just_audio_background/just_audio_background.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // 🚨 Added SharedPreferences import
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'models/station_model.dart';
 import 'services/station_service.dart';
@@ -64,7 +64,6 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
   Station? _currentStation;
   List<Station> _favoriteStations = [];
   
-  // 🚨 SharedPreferences instance
   late SharedPreferences _prefs;
 
   String _currentStreamUrl = 'https://online.goradio.com.ng/listen/gr/radio.mp3';
@@ -120,25 +119,49 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
   @override
   void initState() {
     super.initState();
-    _initPrefs(); // 🚨 Initialize memory
+    _initPrefs(); 
     _audioPlayer = AudioPlayer();
     _initAudioPlayer();
     _fetchNowPlaying();
     _metadataTimer = Timer.periodic(const Duration(seconds: 15), (_) => _fetchNowPlaying());
   }
 
-  // 🚨 NEW METHOD: Load saved favorites from phone storage
+  // 🚨 Updated to load both favorites AND last played session state
   Future<void> _initPrefs() async {
     _prefs = await SharedPreferences.getInstance();
+    
+    // Load favorites
     final List<String> savedIds = _prefs.getStringList('favorite_station_ids') ?? [];
     
-    if (savedIds.isNotEmpty) {
-      final allStations = await StationService.loadStations();
-      if (mounted) {
-        setState(() {
-          _favoriteStations = allStations.where((station) => savedIds.contains(station.id.toString())).toList();
-        });
-      }
+    // Load last played state
+    final String? savedUrl = _prefs.getString('last_stream_url');
+    final String? savedTitle = _prefs.getString('last_song_title');
+    final String? savedArtist = _prefs.getString('last_artist_name');
+    final String? savedArt = _prefs.getString('last_album_art');
+
+    final allStations = await StationService.loadStations();
+    
+    if (mounted) {
+      setState(() {
+        _favoriteStations = allStations.where((station) => savedIds.contains(station.id.toString())).toList();
+        
+        if (savedUrl != null && savedUrl.isNotEmpty) {
+          _currentStreamUrl = savedUrl;
+          _songTitle = savedTitle ?? _songTitle;
+          _artistName = savedArtist ?? _artistName;
+          _albumArtUrl = savedArt ?? _albumArtUrl;
+        }
+      });
+    }
+  }
+
+  // 🚨 Helper method to save session state
+  void _saveLastPlayedState(String url, String title, String artist, String? art) {
+    _prefs.setString('last_stream_url', url);
+    _prefs.setString('last_song_title', title);
+    _prefs.setString('last_artist_name', artist);
+    if (art != null) {
+      _prefs.setString('last_album_art', art);
     }
   }
 
@@ -185,6 +208,9 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
       _isLoadingMetaData = false;
     });
 
+    // 🚨 Save last played state
+    _saveLastPlayedState(station.streamUrl, station.name, station.tagline, station.coverArt);
+
     try {
       await _audioPlayer.setAudioSource(
         AudioSource.uri(
@@ -217,7 +243,6 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
       } else {
         _favoriteStations.add(station);
       }
-      // 🚨 Save the updated list back to phone storage
       final List<String> favoriteIds = _favoriteStations.map((s) => s.id.toString()).toList();
       _prefs.setStringList('favorite_station_ids', favoriteIds);
     });
@@ -271,6 +296,11 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
             _songHistory = parsedHistory;
             _isLoadingMetaData = false;
           });
+
+          // Save default stream state if playing main live stream
+          if (_currentStation == null) {
+            _saveLastPlayedState(_currentStreamUrl, title, artist, artUrl);
+          }
 
           if (!_audioPlayer.playing) {
             _setAudioSourceWithMetadata();
@@ -1826,7 +1856,6 @@ class _WebStyleEqualizerState extends State<WebStyleEqualizer>
   }
 }
 
-// 🚨 SettingsScreen upgraded with SharedPreferences logic
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
@@ -1845,7 +1874,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _loadSettings();
   }
 
-  // 🚨 Load setting states from memory
   Future<void> _loadSettings() async {
     _prefs = await SharedPreferences.getInstance();
     setState(() {
@@ -1854,7 +1882,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
   }
 
-  // 🚨 Save setting states to memory immediately upon toggle
   void _toggleDataSaver(bool val) {
     setState(() => _dataSaver = val);
     _prefs.setBool('data_saver', val);
