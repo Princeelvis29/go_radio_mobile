@@ -74,6 +74,11 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
   Timer? _metadataTimer;
   Timer? _sleepTimer;
   Timer? _countdownTimer;
+  
+  // 🚨 Alarm Clock Variables
+  Timer? _alarmClockTimer;
+  TimeOfDay? _alarmTime;
+  bool _isAlarmActive = false;
 
   String _songTitle = 'Loading stream...';
   String _artistName = 'Connecting to Go Radio';
@@ -124,6 +129,9 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
     _initAudioPlayer();
     _fetchNowPlaying();
     _metadataTimer = Timer.periodic(const Duration(seconds: 15), (_) => _fetchNowPlaying());
+    
+    // 🚨 Initialize Alarm Checker (checks the time every 30 seconds)
+    _alarmClockTimer = Timer.periodic(const Duration(seconds: 30), (_) => _checkAlarm());
   }
 
   Future<void> _initPrefs() async {
@@ -135,6 +143,11 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
     final String? savedTitle = _prefs.getString('last_song_title');
     final String? savedArtist = _prefs.getString('last_artist_name');
     final String? savedArt = _prefs.getString('last_album_art');
+    
+    // Load saved alarm settings
+    final int? alarmHour = _prefs.getInt('alarm_hour');
+    final int? alarmMinute = _prefs.getInt('alarm_minute');
+    final bool alarmActive = _prefs.getBool('alarm_active') ?? false;
 
     final allStations = await StationService.loadStations();
     
@@ -148,6 +161,11 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
           _artistName = savedArtist ?? _artistName;
           _albumArtUrl = savedArt ?? _albumArtUrl;
         }
+        
+        if (alarmHour != null && alarmMinute != null) {
+          _alarmTime = TimeOfDay(hour: alarmHour, minute: alarmMinute);
+          _isAlarmActive = alarmActive;
+        }
       });
     }
   }
@@ -158,6 +176,44 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
     _prefs.setString('last_artist_name', artist);
     if (art != null) {
       _prefs.setString('last_album_art', art);
+    }
+  }
+  
+  // 🚨 Save Alarm state to memory
+  void _saveAlarmState() {
+    if (_alarmTime != null) {
+      _prefs.setInt('alarm_hour', _alarmTime!.hour);
+      _prefs.setInt('alarm_minute', _alarmTime!.minute);
+      _prefs.setBool('alarm_active', _isAlarmActive);
+    }
+  }
+
+  // 🚨 Alarm Logic: Triggers playback when the time matches
+  void _checkAlarm() async {
+    if (_isAlarmActive && _alarmTime != null) {
+      final now = TimeOfDay.now();
+      if (now.hour == _alarmTime!.hour && now.minute == _alarmTime!.minute) {
+        if (!_audioPlayer.playing) {
+          if (_audioPlayer.audioSource == null) {
+            await _setAudioSourceWithMetadata();
+          }
+          await _audioPlayer.play();
+          
+          if (mounted) {
+            setState(() {
+              _isAlarmActive = false; // Turn off alarm after it triggers
+              _saveAlarmState();
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('⏰ Alarm! Waking up to Go Radio!'),
+                backgroundColor: Color(0xFFEF4444),
+                duration: Duration(seconds: 5),
+              ),
+            );
+          }
+        }
+      }
     }
   }
 
@@ -248,6 +304,7 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
     _metadataTimer?.cancel();
     _sleepTimer?.cancel();
     _countdownTimer?.cancel();
+    _alarmClockTimer?.cancel(); // Dispose alarm checker
     _audioPlayer.dispose();
     super.dispose();
   }
@@ -332,7 +389,6 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
     );
   }
 
-  // 🚨 NEW METHOD: Dynamic WhatsApp Live Request Builder
   void _requestSong() {
     final String trackInfo = _artistName.isNotEmpty && _artistName != 'Connecting to Go Radio'
         ? '$_songTitle by $_artistName'
@@ -484,7 +540,6 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
             _buildBottomNavBar(),
           ],
         ),
-        // 🚨 Upgraded to an Extended Floating Action Button
         floatingActionButton: _currentIndex == 0 
           ? FloatingActionButton.extended(
               onPressed: _requestSong,
@@ -868,6 +923,68 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
                             style: const TextStyle(color: Colors.redAccent, fontSize: 12),
                           ),
                         ),
+                      // 🚨 NEW ALARM CLOCK UI IMPLEMENTATION
+                      const SizedBox(height: 6),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'ALARM CLOCK:',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white60,
+                              letterSpacing: 1,
+                            ),
+                          ),
+                          Row(
+                            children: [
+                              if (_alarmTime != null)
+                                Switch(
+                                  value: _isAlarmActive,
+                                  activeColor: const Color(0xFFEF4444),
+                                  onChanged: (val) {
+                                    setState(() {
+                                      _isAlarmActive = val;
+                                      _saveAlarmState();
+                                    });
+                                  },
+                                ),
+                              TextButton.icon(
+                                onPressed: () async {
+                                  final TimeOfDay? picked = await showTimePicker(
+                                    context: context,
+                                    initialTime: _alarmTime ?? TimeOfDay.now(),
+                                    builder: (context, child) {
+                                      return Theme(
+                                        data: ThemeData.dark().copyWith(
+                                          colorScheme: const ColorScheme.dark(
+                                            primary: Color(0xFFEF4444),
+                                            surface: Color(0xFF1E293B),
+                                          ),
+                                        ),
+                                        child: child!,
+                                      );
+                                    },
+                                  );
+                                  if (picked != null) {
+                                    setState(() {
+                                      _alarmTime = picked;
+                                      _isAlarmActive = true;
+                                      _saveAlarmState();
+                                    });
+                                  }
+                                },
+                                icon: const Icon(Icons.alarm, color: Colors.white70, size: 16),
+                                label: Text(
+                                  _alarmTime != null ? _alarmTime!.format(context) : 'Set Alarm',
+                                  style: const TextStyle(color: Colors.white, fontSize: 12),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
