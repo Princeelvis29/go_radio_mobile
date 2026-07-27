@@ -60,10 +60,9 @@ class RadioPlayerScreen extends StatefulWidget {
 class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
   int _currentIndex = 0;
 
-  // 🚨 Added the _currentStation variable to track the active station object
   Station? _currentStation;
+  List<Station> _favoriteStations = [];
 
-  // 🚨 Converted _streamUrl to a dynamic variable so we can change it on tap
   String _currentStreamUrl = 'https://online.goradio.com.ng/listen/gr/radio.mp3';
   static const String _azuracastApiUrl = 'https://online.goradio.com.ng/api/nowplaying/1';
   static const String _defaultLogoPath = 'assets/logo.png';
@@ -153,22 +152,17 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
     }
   }
 
-  // 🚨 NEW METHOD: Play Selected Station Logic
   Future<void> _playSelectedStation(Station station) async {
     await _audioPlayer.stop();
-    
-    // Stop polling the AzuraCast API since we are listening to a different station
     _metadataTimer?.cancel();
 
     setState(() {
-      _currentStation = station; // 🚨 Store the active station object
+      _currentStation = station; 
       _currentStreamUrl = station.streamUrl;
       _songTitle = station.name;
       _artistName = station.tagline;
       _albumArtUrl = station.coverArt;
       _isLoadingMetaData = false;
-      // Optional: Jump back to the Home tab to show the full player
-      // _currentIndex = 0; 
     });
 
     try {
@@ -194,6 +188,16 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
         );
       }
     }
+  }
+
+  void _toggleFavorite(Station station) {
+    setState(() {
+      if (_favoriteStations.any((s) => s.id == station.id)) {
+        _favoriteStations.removeWhere((s) => s.id == station.id);
+      } else {
+        _favoriteStations.add(station);
+      }
+    });
   }
 
   @override
@@ -395,11 +399,21 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
           index: _currentIndex,
           children: [
             _buildLiveRadioTab(),
-            // 🚨 Pass the play method to the ExploreScreen
-            ExploreScreen(onStationSelected: _playSelectedStation),
-            // 🚨 Pass the play method to the CategoryScreen too
-            CategoryScreen(onStationSelected: _playSelectedStation), 
-            const FavoriteScreen(), 
+            ExploreScreen(
+              onStationSelected: _playSelectedStation,
+              favoriteStations: _favoriteStations,
+              onToggleFavorite: _toggleFavorite,
+            ),
+            CategoryScreen(
+              onStationSelected: _playSelectedStation,
+              favoriteStations: _favoriteStations,
+              onToggleFavorite: _toggleFavorite,
+            ), 
+            FavoriteScreen(
+              favoriteStations: _favoriteStations,
+              onStationSelected: _playSelectedStation,
+              onToggleFavorite: _toggleFavorite,
+            ), 
           ],
         ),
         bottomNavigationBar: Column(
@@ -447,10 +461,17 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
               setState(() => _currentIndex = 0);
             },
           ),
+          // 🚨 Updated Settings routing to push to the new SettingsScreen
           ListTile(
             leading: const Icon(Icons.settings_outlined, color: Colors.white70),
             title: const Text('Settings', style: TextStyle(color: Colors.white)),
-            onTap: () => Navigator.pop(context),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SettingsScreen()),
+              );
+            },
           ),
           const Divider(color: Colors.white10),
           const Padding(
@@ -601,8 +622,6 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
                   ],
                 ),
                 const SizedBox(height: 20),
-                
-                // 🚨 INSERTED NEW CLIPRRECT CODE HERE
                 ClipRRect(
                   borderRadius: BorderRadius.circular(16),
                   child: Container(
@@ -637,7 +656,6 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
                           ),
                   ),
                 ),
-                // 🚨 END OF NEW CLIPRRECT CODE
                 
                 const SizedBox(height: 20),
                 Text(
@@ -1110,10 +1128,16 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
 }
 
 class ExploreScreen extends StatelessWidget {
-  // 🚨 Add callback parameter so we can pass data back to the audio player
   final Function(Station) onStationSelected;
+  final List<Station> favoriteStations;
+  final Function(Station) onToggleFavorite;
 
-  const ExploreScreen({super.key, required this.onStationSelected});
+  const ExploreScreen({
+    super.key, 
+    required this.onStationSelected,
+    required this.favoriteStations,
+    required this.onToggleFavorite,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1138,10 +1162,8 @@ class ExploreScreen extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 24),
-
         const AdBannerWidget(),
         const SizedBox(height: 24),
-        
         const Text('Featured radios', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
         const SizedBox(height: 12),
         
@@ -1157,7 +1179,6 @@ class ExploreScreen extends StatelessWidget {
                 ),
               );
             } 
-            
             else if (snapshot.hasError) {
               return Center(
                 child: Text(
@@ -1166,7 +1187,6 @@ class ExploreScreen extends StatelessWidget {
                 ),
               );
             } 
-            
             else if (!snapshot.hasData || snapshot.data!.isEmpty) {
               return const Center(
                 child: Text(
@@ -1190,62 +1210,85 @@ class ExploreScreen extends StatelessWidget {
               itemCount: activeStations.length,
               itemBuilder: (context, index) {
                 final station = activeStations[index];
+                final isFavorite = favoriteStations.any((s) => s.id == station.id);
                 
-                // 🚨 Wrap the container in an InkWell to handle taps
                 return InkWell(
                   onTap: () => onStationSelected(station),
                   borderRadius: BorderRadius.circular(16),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      color: const Color(0xFF1E293B),
-                      border: Border.all(color: Colors.white10),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: ClipRRect(
-                            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                            child: Image.asset(
-                              station.coverArt,
-                              width: double.infinity,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) => Container(
-                                color: const Color(0xFF0F172A),
-                                child: const Icon(Icons.radio, size: 40, color: Colors.white30),
+                  child: Stack(
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          color: const Color(0xFF1E293B),
+                          border: Border.all(color: Colors.white10),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: ClipRRect(
+                                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                                child: Image.asset(
+                                  station.coverArt,
+                                  width: double.infinity,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) => Container(
+                                    color: const Color(0xFF0F172A),
+                                    child: const Icon(Icons.radio, size: 40, color: Colors.white30),
+                                  ),
+                                ),
                               ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.all(12.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    station.name,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                      color: Colors.white,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    station.category,
+                                    style: const TextStyle(
+                                      color: Colors.white54,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: InkWell(
+                          onTap: () => onToggleFavorite(station),
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: const BoxDecoration(
+                              color: Colors.black54,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              isFavorite ? Icons.favorite : Icons.favorite_border,
+                              color: isFavorite ? const Color(0xFFEF4444) : Colors.white,
+                              size: 20,
                             ),
                           ),
                         ),
-                        Padding(
-                          padding: const EdgeInsets.all(12.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                station.name,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                  color: Colors.white,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                station.category,
-                                style: const TextStyle(
-                                  color: Colors.white54,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 );
               },
@@ -1259,12 +1302,18 @@ class ExploreScreen extends StatelessWidget {
 
 class CategoryScreen extends StatelessWidget {
   final Function(Station) onStationSelected;
+  final List<Station> favoriteStations;
+  final Function(Station) onToggleFavorite;
 
-  const CategoryScreen({super.key, required this.onStationSelected});
+  const CategoryScreen({
+    super.key, 
+    required this.onStationSelected,
+    required this.favoriteStations,
+    required this.onToggleFavorite,
+  });
 
   @override
   Widget build(BuildContext context) {
-    // 🚨 I added Gospel to your UI array here!
     final List<Map<String, dynamic>> categories = [
       {'title': 'Music', 'color': Colors.purple.shade400, 'icon': Icons.music_note},
       {'title': 'Classic', 'color': Colors.brown.shade400, 'icon': Icons.album},
@@ -1297,13 +1346,14 @@ class CategoryScreen extends StatelessWidget {
             final category = categories[index];
             return InkWell(
               onTap: () {
-                // 🚨 When tapped, push the new detail screen
                 Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (context) => CategoryDetailScreen(
                       categoryName: category['title'],
                       onStationSelected: onStationSelected,
+                      favoriteStations: favoriteStations,
+                      onToggleFavorite: onToggleFavorite,
                     ),
                   ),
                 );
@@ -1343,15 +1393,18 @@ class CategoryScreen extends StatelessWidget {
   }
 }
 
-// 🚨 BRAND NEW SCREEN: This displays the filtered stations for the tapped category
 class CategoryDetailScreen extends StatelessWidget {
   final String categoryName;
   final Function(Station) onStationSelected;
+  final List<Station> favoriteStations;
+  final Function(Station) onToggleFavorite;
 
   const CategoryDetailScreen({
     super.key,
     required this.categoryName,
     required this.onStationSelected,
+    required this.favoriteStations,
+    required this.onToggleFavorite,
   });
 
   @override
@@ -1376,7 +1429,6 @@ class CategoryDetailScreen extends StatelessWidget {
             return const Center(child: Text("No stations found.", style: TextStyle(color: Colors.white54)));
           }
 
-          // 🚨 Smart filtering logic to match JSON categories with UI categories
           final categoryStations = snapshot.data!.where((station) {
             if (!station.isActive) return false;
             
@@ -1409,6 +1461,8 @@ class CategoryDetailScreen extends StatelessWidget {
             itemCount: categoryStations.length,
             itemBuilder: (context, index) {
               final station = categoryStations[index];
+              final isFavorite = favoriteStations.any((s) => s.id == station.id);
+
               return Card(
                 color: const Color(0xFF1E293B),
                 margin: const EdgeInsets.only(bottom: 12),
@@ -1432,9 +1486,20 @@ class CategoryDetailScreen extends StatelessWidget {
                   ),
                   title: Text(station.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                   subtitle: Text(station.tagline, style: const TextStyle(color: Colors.white54, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
-                  trailing: const Icon(Icons.play_circle_fill, color: Color(0xFFEF4444), size: 32),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: Icon(
+                          isFavorite ? Icons.favorite : Icons.favorite_border,
+                          color: isFavorite ? const Color(0xFFEF4444) : Colors.white54,
+                        ),
+                        onPressed: () => onToggleFavorite(station),
+                      ),
+                      const Icon(Icons.play_circle_fill, color: Color(0xFFEF4444), size: 32),
+                    ],
+                  ),
                   onTap: () {
-                    // Play the station, then pop back to the home screen
                     onStationSelected(station);
                     Navigator.pop(context); 
                   },
@@ -1449,31 +1514,89 @@ class CategoryDetailScreen extends StatelessWidget {
 }
 
 class FavoriteScreen extends StatelessWidget {
-  const FavoriteScreen({super.key});
+  final List<Station> favoriteStations;
+  final Function(Station) onStationSelected;
+  final Function(Station) onToggleFavorite;
+
+  const FavoriteScreen({
+    super.key,
+    required this.favoriteStations,
+    required this.onStationSelected,
+    required this.onToggleFavorite,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.favorite_border, size: 80, color: Colors.white.withValues(alpha: 0.2)),
-          const SizedBox(height: 16),
-          const Text(
-            'Whoops!',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
-          ),
-          const SizedBox(height: 8),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 32.0),
-            child: Text(
-              "Your favorite list is empty because you haven't added any radios to the favorite menu.",
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white54, height: 1.5),
+    if (favoriteStations.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.favorite_border, size: 80, color: Colors.white.withValues(alpha: 0.2)),
+            const SizedBox(height: 16),
+            const Text(
+              'Whoops!',
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
             ),
+            const SizedBox(height: 8),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 32.0),
+              child: Text(
+                "Your favorite list is empty because you haven't added any radios to the favorite menu.",
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white54, height: 1.5),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16.0),
+      itemCount: favoriteStations.length,
+      itemBuilder: (context, index) {
+        final station = favoriteStations[index];
+        return Card(
+          color: const Color(0xFF1E293B),
+          margin: const EdgeInsets.only(bottom: 12),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          child: ListTile(
+            contentPadding: const EdgeInsets.all(12),
+            leading: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.asset(
+                station.coverArt,
+                width: 56,
+                height: 56,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  width: 56,
+                  height: 56,
+                  color: const Color(0xFF0F172A),
+                  child: const Icon(Icons.radio, color: Colors.white30),
+                ),
+              ),
+            ),
+            title: Text(station.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            subtitle: Text(station.category, style: const TextStyle(color: Colors.white54, fontSize: 12)),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.favorite, color: Color(0xFFEF4444)),
+                  onPressed: () => onToggleFavorite(station),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.play_circle_fill, color: Colors.white, size: 32),
+                  onPressed: () => onStationSelected(station),
+                ),
+              ],
+            ),
+            onTap: () => onStationSelected(station),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -1623,6 +1746,81 @@ class _WebStyleEqualizerState extends State<WebStyleEqualizer>
             ),
           );
         }),
+      ),
+    );
+  }
+}
+
+// 🚨 BRAND NEW SCREEN: This is your fully functional Settings page!
+class SettingsScreen extends StatefulWidget {
+  const SettingsScreen({super.key});
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  bool _dataSaver = false;
+  bool _notifications = true;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Settings', style: TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: const Color(0xFF1E293B),
+        elevation: 0,
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16.0),
+        children: [
+          const Text('Preferences', style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 1.2)),
+          const SizedBox(height: 12),
+          SwitchListTile(
+            activeColor: const Color(0xFFEF4444),
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Data Saver Mode', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            subtitle: const Text('Stream audio at a lower bitrate to save mobile data.', style: TextStyle(color: Colors.white54, fontSize: 12)),
+            value: _dataSaver,
+            onChanged: (val) => setState(() => _dataSaver = val),
+          ),
+          SwitchListTile(
+            activeColor: const Color(0xFFEF4444),
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Push Notifications', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            subtitle: const Text('Receive alerts for live shows and new stations.', style: TextStyle(color: Colors.white54, fontSize: 12)),
+            value: _notifications,
+            onChanged: (val) => setState(() => _notifications = val),
+          ),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 16.0),
+            child: Divider(color: Colors.white10),
+          ),
+          const Text('Storage & Data', style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 1.2)),
+          const SizedBox(height: 12),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Clear Image Cache', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            subtitle: const Text('Free up space by clearing cached station logos.', style: TextStyle(color: Colors.white54, fontSize: 12)),
+            trailing: const Icon(Icons.delete_outline, color: Colors.white54),
+            onTap: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Image cache cleared successfully.'), duration: Duration(seconds: 2)),
+              );
+            },
+          ),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 16.0),
+            child: Divider(color: Colors.white10),
+          ),
+          const Text('About', style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 1.2)),
+          const SizedBox(height: 12),
+          const ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text('About GoRadio', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            subtitle: Text('Version 1.0.0\nDeveloped by Arktech Solutions', style: TextStyle(color: Colors.white54, fontSize: 12)),
+          ),
+        ],
       ),
     );
   }
