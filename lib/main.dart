@@ -10,6 +10,7 @@ import 'package:just_audio_background/just_audio_background.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // 🚨 Added SharedPreferences import
 
 import 'models/station_model.dart';
 import 'services/station_service.dart';
@@ -62,6 +63,9 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
 
   Station? _currentStation;
   List<Station> _favoriteStations = [];
+  
+  // 🚨 SharedPreferences instance
+  late SharedPreferences _prefs;
 
   String _currentStreamUrl = 'https://online.goradio.com.ng/listen/gr/radio.mp3';
   static const String _azuracastApiUrl = 'https://online.goradio.com.ng/api/nowplaying/1';
@@ -116,10 +120,26 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
   @override
   void initState() {
     super.initState();
+    _initPrefs(); // 🚨 Initialize memory
     _audioPlayer = AudioPlayer();
     _initAudioPlayer();
     _fetchNowPlaying();
     _metadataTimer = Timer.periodic(const Duration(seconds: 15), (_) => _fetchNowPlaying());
+  }
+
+  // 🚨 NEW METHOD: Load saved favorites from phone storage
+  Future<void> _initPrefs() async {
+    _prefs = await SharedPreferences.getInstance();
+    final List<String> savedIds = _prefs.getStringList('favorite_station_ids') ?? [];
+    
+    if (savedIds.isNotEmpty) {
+      final allStations = await StationService.loadStations();
+      if (mounted) {
+        setState(() {
+          _favoriteStations = allStations.where((station) => savedIds.contains(station.id.toString())).toList();
+        });
+      }
+    }
   }
 
   Future<void> _initAudioPlayer() async {
@@ -197,6 +217,9 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
       } else {
         _favoriteStations.add(station);
       }
+      // 🚨 Save the updated list back to phone storage
+      final List<String> favoriteIds = _favoriteStations.map((s) => s.id.toString()).toList();
+      _prefs.setStringList('favorite_station_ids', favoriteIds);
     });
   }
 
@@ -461,7 +484,6 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
               setState(() => _currentIndex = 0);
             },
           ),
-          // 🚨 Updated Settings routing to push to the new SettingsScreen
           ListTile(
             leading: const Icon(Icons.settings_outlined, color: Colors.white70),
             title: const Text('Settings', style: TextStyle(color: Colors.white)),
@@ -1127,7 +1149,7 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
   }
 }
 
-class ExploreScreen extends StatelessWidget {
+class ExploreScreen extends StatefulWidget {
   final Function(Station) onStationSelected;
   final List<Station> favoriteStations;
   final Function(Station) onToggleFavorite;
@@ -1138,6 +1160,20 @@ class ExploreScreen extends StatelessWidget {
     required this.favoriteStations,
     required this.onToggleFavorite,
   });
+
+  @override
+  State<ExploreScreen> createState() => _ExploreScreenState();
+}
+
+class _ExploreScreenState extends State<ExploreScreen> {
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1151,20 +1187,40 @@ class ExploreScreen extends StatelessWidget {
             borderRadius: BorderRadius.circular(24),
             border: Border.all(color: Colors.white10),
           ),
-          child: const TextField(
+          child: TextField(
+            controller: _searchController,
+            onChanged: (value) {
+              setState(() {
+                _searchQuery = value.toLowerCase();
+              });
+            },
             decoration: InputDecoration(
-              icon: Icon(Icons.search, color: Colors.white54),
+              icon: const Icon(Icons.search, color: Colors.white54),
               hintText: 'Search radios...',
-              hintStyle: TextStyle(color: Colors.white54),
+              hintStyle: const TextStyle(color: Colors.white54),
               border: InputBorder.none,
+              suffixIcon: _searchQuery.isNotEmpty 
+                  ? IconButton(
+                      icon: const Icon(Icons.clear, color: Colors.white54),
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() {
+                          _searchQuery = '';
+                        });
+                      },
+                    )
+                  : null,
             ),
-            style: TextStyle(color: Colors.white),
+            style: const TextStyle(color: Colors.white),
           ),
         ),
         const SizedBox(height: 24),
         const AdBannerWidget(),
         const SizedBox(height: 24),
-        const Text('Featured radios', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+        Text(
+          _searchQuery.isEmpty ? 'Featured radios' : 'Search Results', 
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)
+        ),
         const SizedBox(height: 12),
         
         FutureBuilder<List<Station>>(
@@ -1196,7 +1252,26 @@ class ExploreScreen extends StatelessWidget {
               );
             }
 
-            final activeStations = snapshot.data!.where((station) => station.isActive).toList();
+            final activeStations = snapshot.data!.where((station) {
+              if (!station.isActive) return false;
+              if (_searchQuery.isEmpty) return true;
+              
+              return station.name.toLowerCase().contains(_searchQuery) ||
+                     station.category.toLowerCase().contains(_searchQuery) ||
+                     station.tagline.toLowerCase().contains(_searchQuery);
+            }).toList();
+
+            if (activeStations.isEmpty) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(32.0),
+                  child: Text(
+                    "No radios found for '$_searchQuery'",
+                    style: const TextStyle(color: Colors.white54),
+                  ),
+                ),
+              );
+            }
 
             return GridView.builder(
               shrinkWrap: true,
@@ -1210,10 +1285,10 @@ class ExploreScreen extends StatelessWidget {
               itemCount: activeStations.length,
               itemBuilder: (context, index) {
                 final station = activeStations[index];
-                final isFavorite = favoriteStations.any((s) => s.id == station.id);
+                final isFavorite = widget.favoriteStations.any((s) => s.id == station.id);
                 
                 return InkWell(
-                  onTap: () => onStationSelected(station),
+                  onTap: () => widget.onStationSelected(station),
                   borderRadius: BorderRadius.circular(16),
                   child: Stack(
                     children: [
@@ -1273,7 +1348,7 @@ class ExploreScreen extends StatelessWidget {
                         top: 8,
                         right: 8,
                         child: InkWell(
-                          onTap: () => onToggleFavorite(station),
+                          onTap: () => widget.onToggleFavorite(station),
                           child: Container(
                             padding: const EdgeInsets.all(6),
                             decoration: const BoxDecoration(
@@ -1751,7 +1826,7 @@ class _WebStyleEqualizerState extends State<WebStyleEqualizer>
   }
 }
 
-// 🚨 BRAND NEW SCREEN: This is your fully functional Settings page!
+// 🚨 SettingsScreen upgraded with SharedPreferences logic
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
@@ -1762,6 +1837,33 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _dataSaver = false;
   bool _notifications = true;
+  late SharedPreferences _prefs;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  // 🚨 Load setting states from memory
+  Future<void> _loadSettings() async {
+    _prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _dataSaver = _prefs.getBool('data_saver') ?? false;
+      _notifications = _prefs.getBool('push_notifications') ?? true;
+    });
+  }
+
+  // 🚨 Save setting states to memory immediately upon toggle
+  void _toggleDataSaver(bool val) {
+    setState(() => _dataSaver = val);
+    _prefs.setBool('data_saver', val);
+  }
+
+  void _toggleNotifications(bool val) {
+    setState(() => _notifications = val);
+    _prefs.setBool('push_notifications', val);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1782,7 +1884,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: const Text('Data Saver Mode', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             subtitle: const Text('Stream audio at a lower bitrate to save mobile data.', style: TextStyle(color: Colors.white54, fontSize: 12)),
             value: _dataSaver,
-            onChanged: (val) => setState(() => _dataSaver = val),
+            onChanged: _toggleDataSaver,
           ),
           SwitchListTile(
             activeColor: const Color(0xFFEF4444),
@@ -1790,7 +1892,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: const Text('Push Notifications', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             subtitle: const Text('Receive alerts for live shows and new stations.', style: TextStyle(color: Colors.white54, fontSize: 12)),
             value: _notifications,
-            onChanged: (val) => setState(() => _notifications = val),
+            onChanged: _toggleNotifications,
           ),
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 16.0),
@@ -1819,6 +1921,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
             contentPadding: EdgeInsets.zero,
             title: Text('About GoRadio', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             subtitle: Text('Version 1.0.0\nDeveloped by Arktech Solutions', style: TextStyle(color: Colors.white54, fontSize: 12)),
+          ),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 16.0),
+            child: Divider(color: Colors.white10),
+          ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Exit App', style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.bold)),
+            subtitle: const Text('Close the application.', style: TextStyle(color: Colors.white54, fontSize: 12)),
+            trailing: const Icon(Icons.power_settings_new, color: Color(0xFFEF4444)),
+            onTap: () {
+              SystemChannels.platform.invokeMethod('SystemNavigator.pop');
+            },
           ),
         ],
       ),

@@ -43,6 +43,7 @@ dependencies:
   share_plus: ^10.0.0
   flutter_launcher_icons: ^0.14.4
   google_mobile_ads: ^9.0.0
+  shared_preferences: ^2.5.5
 
 dev_dependencies:
   flutter_test:
