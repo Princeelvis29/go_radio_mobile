@@ -126,14 +126,11 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
     _metadataTimer = Timer.periodic(const Duration(seconds: 15), (_) => _fetchNowPlaying());
   }
 
-  // 🚨 Updated to load both favorites AND last played session state
   Future<void> _initPrefs() async {
     _prefs = await SharedPreferences.getInstance();
     
-    // Load favorites
     final List<String> savedIds = _prefs.getStringList('favorite_station_ids') ?? [];
     
-    // Load last played state
     final String? savedUrl = _prefs.getString('last_stream_url');
     final String? savedTitle = _prefs.getString('last_song_title');
     final String? savedArtist = _prefs.getString('last_artist_name');
@@ -155,7 +152,6 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
     }
   }
 
-  // 🚨 Helper method to save session state
   void _saveLastPlayedState(String url, String title, String artist, String? art) {
     _prefs.setString('last_stream_url', url);
     _prefs.setString('last_song_title', title);
@@ -208,7 +204,6 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
       _isLoadingMetaData = false;
     });
 
-    // 🚨 Save last played state
     _saveLastPlayedState(station.streamUrl, station.name, station.tagline, station.coverArt);
 
     try {
@@ -297,7 +292,6 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
             _isLoadingMetaData = false;
           });
 
-          // Save default stream state if playing main live stream
           if (_currentStation == null) {
             _saveLastPlayedState(_currentStreamUrl, title, artist, artUrl);
           }
@@ -336,6 +330,19 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
     Share.share(
       "I'm listening to Go Radio Live! Currently playing: $trackInfo. Download the app here: https://live.goradio.com.ng",
     );
+  }
+
+  // 🚨 NEW METHOD: Dynamic WhatsApp Live Request Builder
+  void _requestSong() {
+    final String trackInfo = _artistName.isNotEmpty && _artistName != 'Connecting to Go Radio'
+        ? '$_songTitle by $_artistName'
+        : _songTitle;
+    
+    final String message = Uri.encodeComponent(
+      "Hello GoRadio! 🎵 I'm tuned in right now. Can I make a request or send a shoutout? (Currently playing: $trackInfo)"
+    );
+    
+    _launchExternalUrl('https://wa.me/2348134839763?text=$message');
   }
 
   void _setSleepTimer(int minutes) {
@@ -477,11 +484,13 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
             _buildBottomNavBar(),
           ],
         ),
+        // 🚨 Upgraded to an Extended Floating Action Button
         floatingActionButton: _currentIndex == 0 
-          ? FloatingActionButton(
-              onPressed: () => _launchExternalUrl('https://wa.me/2348134839763'),
+          ? FloatingActionButton.extended(
+              onPressed: _requestSong,
               backgroundColor: const Color(0xFF25D366),
-              child: const Icon(Icons.chat, color: Colors.white, size: 28),
+              icon: const Icon(Icons.chat, color: Colors.white),
+              label: const Text('Live Request', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             ) 
           : null,
       ),
