@@ -14,7 +14,7 @@
 
     <!-- 🚨 FIX: Disabled Auto-Backup to prevent WorkDatabase crashes on reinstall 🚨 -->
     <application
-        android:label="go_radio_mobile"
+        android:label="GoRadio"
         android:name="${applicationName}"
         android:icon="@mipmap/launcher_icon"
         android:usesCleartextTraffic="true"
