@@ -11,13 +11,30 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:palette_generator/palette_generator.dart'; // 🚨 Added Palette Generator
+import 'package:palette_generator/palette_generator.dart';
 
 import 'models/station_model.dart';
 import 'services/station_service.dart';
 
+// 🚨 Centralized AppColors Engine for Light/Dark Mode scaling
+class AppColors {
+  static bool isDark(BuildContext context) => Theme.of(context).brightness == Brightness.dark;
+  static Color bg(BuildContext context) => isDark(context) ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC);
+  static Color card(BuildContext context) => isDark(context) ? const Color(0xFF1E293B) : Colors.white;
+  static Color text(BuildContext context) => isDark(context) ? Colors.white : const Color(0xFF0F172A);
+  static Color subText(BuildContext context) => isDark(context) ? Colors.white54 : Colors.black54;
+  static Color border(BuildContext context) => isDark(context) ? Colors.white10 : Colors.black12;
+  static const Color primary = Color(0xFFEF4444);
+  static const Color success = Color(0xFF25D366);
+}
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // 🚨 Pre-load theme preference before the app boots
+  final prefs = await SharedPreferences.getInstance();
+  final isDark = prefs.getBool('is_dark_mode') ?? true;
+  GoRadioApp.themeNotifier.value = isDark ? ThemeMode.dark : ThemeMode.light;
   
   await MobileAds.instance.initialize();
   
@@ -34,20 +51,36 @@ Future<void> main() async {
 
 class GoRadioApp extends StatelessWidget {
   const GoRadioApp({super.key});
+  
+  // 🚨 Global Theme Notifier to trigger instant UI updates
+  static final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.dark);
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'GO RADIO LIVE',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData.dark().copyWith(
-        scaffoldBackgroundColor: const Color(0xFF0F172A),
-        colorScheme: const ColorScheme.dark(
-          primary: Color(0xFFEF4444),
-          surface: Color(0xFF1E293B),
-        ),
-      ),
-      home: const RadioPlayerScreen(),
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: themeNotifier,
+      builder: (_, ThemeMode currentMode, __) {
+        return MaterialApp(
+          title: 'GO RADIO LIVE',
+          debugShowCheckedModeBanner: false,
+          themeMode: currentMode,
+          theme: ThemeData.light().copyWith(
+            scaffoldBackgroundColor: const Color(0xFFF8FAFC),
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFFEF4444),
+              surface: Colors.white,
+            ),
+          ),
+          darkTheme: ThemeData.dark().copyWith(
+            scaffoldBackgroundColor: const Color(0xFF0F172A),
+            colorScheme: const ColorScheme.dark(
+              primary: Color(0xFFEF4444),
+              surface: Color(0xFF1E293B),
+            ),
+          ),
+          home: const RadioPlayerScreen(),
+        );
+      },
     );
   }
 }
@@ -92,7 +125,6 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
   bool _showHistory = false;
   bool _showSchedule = false;
 
-  // 🚨 Dynamic color variable
   Color _dominantColor = const Color(0xFF1E293B);
 
   final List<Map<String, String>> _programSchedule = const [
@@ -135,7 +167,6 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
     _alarmClockTimer = Timer.periodic(const Duration(seconds: 30), (_) => _checkAlarm());
   }
 
-  // 🚨 Dynamic Palette Extraction Logic
   Future<void> _updatePalette() async {
     try {
       ImageProvider imageProvider;
@@ -152,7 +183,7 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
 
       if (mounted) {
         setState(() {
-          _dominantColor = generator.dominantColor?.color ?? const Color(0xFF1E293B);
+          _dominantColor = generator.dominantColor?.color ?? AppColors.card(context);
         });
       }
     } catch (e) {
@@ -192,7 +223,7 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
           _isAlarmActive = alarmActive;
         }
       });
-      _updatePalette(); // Generate palette for loaded state
+      _updatePalette(); 
     }
   }
 
@@ -231,7 +262,7 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('⏰ Alarm! Waking up to Go Radio!'),
-                backgroundColor: Color(0xFFEF4444),
+                backgroundColor: AppColors.primary,
                 duration: Duration(seconds: 5),
               ),
             );
@@ -284,7 +315,7 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
       _isLoadingMetaData = false;
     });
 
-    _updatePalette(); // Generate new palette when switching stations
+    _updatePalette();
     _saveLastPlayedState(station.streamUrl, station.name, station.tagline, station.coverArt);
 
     try {
@@ -378,7 +409,7 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
 
           if (_currentStation == null) {
             _saveLastPlayedState(_currentStreamUrl, title, artist, artUrl);
-            if (albumArtChanged) _updatePalette(); // Generate new palette if live track changes
+            if (albumArtChanged) _updatePalette();
           }
 
           if (!_audioPlayer.playing) {
@@ -475,38 +506,38 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1E293B),
+        backgroundColor: AppColors.card(context),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Center(
-          child: Text('GO RADIO', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: Center(
+          child: Text('GO RADIO', style: TextStyle(color: AppColors.text(context), fontWeight: FontWeight.bold)),
         ),
-        content: const Column(
+        content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('What do you want to do?', style: TextStyle(color: Colors.white70)),
-            SizedBox(height: 20),
-            AdBannerWidget(),
+            Text('What do you want to do?', style: TextStyle(color: AppColors.subText(context))),
+            const SizedBox(height: 20),
+            const AdBannerWidget(),
           ],
         ),
         actionsAlignment: MainAxisAlignment.spaceEvenly,
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+            child: Text('Cancel', style: TextStyle(color: AppColors.subText(context))),
           ),
           TextButton(
             onPressed: () {
               Navigator.pop(context);
               SystemChannels.platform.invokeMethod('SystemNavigator.pop');
             },
-            child: const Text('Minimize', style: TextStyle(color: Color(0xFF25D366), fontWeight: FontWeight.bold)),
+            child: const Text('Minimize', style: TextStyle(color: AppColors.success, fontWeight: FontWeight.bold)),
           ),
           TextButton(
             onPressed: () {
               _audioPlayer.stop();
               SystemNavigator.pop();
             },
-            child: const Text('Exit', style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.bold)),
+            child: const Text('Exit', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -523,12 +554,13 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: const Text(
+          title: Text(
             'GO RADIO',
-            style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.2),
+            style: TextStyle(color: AppColors.text(context), fontWeight: FontWeight.bold, letterSpacing: 1.2),
           ),
+          iconTheme: IconThemeData(color: AppColors.text(context)),
           centerTitle: true,
-          backgroundColor: const Color(0xFF1E293B),
+          backgroundColor: AppColors.card(context),
           elevation: 0,
           actions: [
             IconButton(
@@ -564,14 +596,14 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (_currentIndex != 0) _buildMiniPlayer(),
-            const Divider(height: 1, thickness: 1, color: Colors.white10),
+            Divider(height: 1, thickness: 1, color: AppColors.border(context)),
             _buildBottomNavBar(),
           ],
         ),
         floatingActionButton: _currentIndex == 0 
           ? FloatingActionButton.extended(
               onPressed: _requestSong,
-              backgroundColor: const Color(0xFF25D366),
+              backgroundColor: AppColors.success,
               icon: const Icon(Icons.chat, color: Colors.white),
               label: const Text('Live Request', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             ) 
@@ -582,33 +614,33 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
 
   Widget _buildSideDrawer() {
     return Drawer(
-      backgroundColor: const Color(0xFF0F172A),
+      backgroundColor: AppColors.bg(context),
       child: ListView(
         padding: EdgeInsets.zero,
         children: [
           DrawerHeader(
-            decoration: const BoxDecoration(color: Color(0xFF1E293B)),
+            decoration: BoxDecoration(color: AppColors.card(context)),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                Image.asset(_defaultLogoPath, height: 50, errorBuilder: (_, _, _) => const Icon(Icons.radio, size: 48, color: Colors.white)),
+                Image.asset(_defaultLogoPath, height: 50, errorBuilder: (_, _, _) => Icon(Icons.radio, size: 48, color: AppColors.text(context))),
                 const SizedBox(height: 12),
-                const Text('GO RADIO', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                Text('GO RADIO', style: TextStyle(color: AppColors.text(context), fontSize: 20, fontWeight: FontWeight.bold)),
               ],
             ),
           ),
           ListTile(
-            leading: const Icon(Icons.home_outlined, color: Colors.white70),
-            title: const Text('Home', style: TextStyle(color: Colors.white)),
+            leading: Icon(Icons.home_outlined, color: AppColors.text(context).withOpacity(0.7)),
+            title: Text('Home', style: TextStyle(color: AppColors.text(context))),
             onTap: () {
               Navigator.pop(context);
               setState(() => _currentIndex = 0);
             },
           ),
           ListTile(
-            leading: const Icon(Icons.settings_outlined, color: Colors.white70),
-            title: const Text('Settings', style: TextStyle(color: Colors.white)),
+            leading: Icon(Icons.settings_outlined, color: AppColors.text(context).withOpacity(0.7)),
+            title: Text('Settings', style: TextStyle(color: AppColors.text(context))),
             onTap: () {
               Navigator.pop(context);
               Navigator.push(
@@ -617,22 +649,22 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
               );
             },
           ),
-          const Divider(color: Colors.white10),
-          const Padding(
-            padding: EdgeInsets.only(left: 16.0, top: 8.0, bottom: 8.0),
-            child: Text('Socials', style: TextStyle(color: Colors.white38, fontWeight: FontWeight.bold)),
+          Divider(color: AppColors.border(context)),
+          Padding(
+            padding: const EdgeInsets.only(left: 16.0, top: 8.0, bottom: 8.0),
+            child: Text('Socials', style: TextStyle(color: AppColors.subText(context), fontWeight: FontWeight.bold)),
           ),
           ListTile(
-            leading: const Icon(Icons.language, color: Colors.white70),
-            title: const Text('Website', style: TextStyle(color: Colors.white)),
+            leading: Icon(Icons.language, color: AppColors.text(context).withOpacity(0.7)),
+            title: Text('Website', style: TextStyle(color: AppColors.text(context))),
             onTap: () {
               Navigator.pop(context);
               _launchExternalUrl('https://goradio.com.ng');
             },
           ),
           ListTile(
-            leading: const Icon(Icons.facebook, color: Colors.white70),
-            title: const Text('Facebook', style: TextStyle(color: Colors.white)),
+            leading: Icon(Icons.facebook, color: AppColors.text(context).withOpacity(0.7)),
+            title: Text('Facebook', style: TextStyle(color: AppColors.text(context))),
             onTap: () => Navigator.pop(context),
           ),
         ],
@@ -643,9 +675,9 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
   Widget _buildBottomNavBar() {
     return BottomNavigationBar(
       type: BottomNavigationBarType.fixed,
-      backgroundColor: const Color(0xFF1E293B),
-      selectedItemColor: const Color(0xFFEF4444),
-      unselectedItemColor: Colors.white54,
+      backgroundColor: AppColors.card(context),
+      selectedItemColor: AppColors.primary,
+      unselectedItemColor: AppColors.subText(context),
       currentIndex: _currentIndex,
       onTap: (index) => setState(() => _currentIndex = index),
       items: const [
@@ -659,7 +691,7 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
 
   Widget _buildMiniPlayer() {
     return Container(
-      color: const Color(0xFF1E293B),
+      color: AppColors.card(context),
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       child: Row(
         children: [
@@ -674,8 +706,8 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(_songTitle, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
-                Text(_artistName, style: const TextStyle(color: Colors.white54, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
+                Text(_songTitle, style: TextStyle(color: AppColors.text(context), fontWeight: FontWeight.bold, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
+                Text(_artistName, style: TextStyle(color: AppColors.subText(context), fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
               ],
             ),
           ),
@@ -688,11 +720,11 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
               if (processingState == ProcessingState.loading || processingState == ProcessingState.buffering) {
                 return const Padding(
                   padding: EdgeInsets.all(12.0),
-                  child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Color(0xFFEF4444), strokeWidth: 2)),
+                  child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2)),
                 );
               }
               return IconButton(
-                icon: Icon(playing ? Icons.pause : Icons.play_arrow, color: Colors.white),
+                icon: Icon(playing ? Icons.pause : Icons.play_arrow, color: AppColors.text(context)),
                 onPressed: () {
                   if (playing) {
                     _audioPlayer.pause();
@@ -711,13 +743,12 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
   Widget _buildLiveRadioTab() {
     return RefreshIndicator(
       onRefresh: _fetchNowPlaying,
-      color: const Color(0xFFEF4444),
-      backgroundColor: const Color(0xFF1E293B),
+      color: AppColors.primary,
+      backgroundColor: AppColors.card(context),
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(20.0),
         child: Center(
-          // 🚨 Upgraded to AnimatedContainer for dynamic color blending
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 800),
             constraints: const BoxConstraints(maxWidth: 450),
@@ -727,15 +758,15 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  _dominantColor.withOpacity(0.6),
-                  const Color(0xFF1E293B),
+                  AppColors.isDark(context) ? _dominantColor.withOpacity(0.6) : _dominantColor.withOpacity(0.2),
+                  AppColors.card(context),
                 ],
               ),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.white10),
+              border: Border.all(color: AppColors.border(context)),
               boxShadow: const [
                 BoxShadow(
-                  color: Colors.black45,
+                  color: Colors.black26,
                   blurRadius: 15,
                   offset: Offset(0, 5),
                 ),
@@ -763,10 +794,10 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    const Text(
+                    Text(
                       'LIVE ON AIR',
                       style: TextStyle(
-                        color: Colors.white70,
+                        color: AppColors.text(context).withOpacity(0.7),
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
                         letterSpacing: 2,
@@ -780,7 +811,7 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
                   child: Container(
                     width: 220,
                     height: 220,
-                    color: Colors.black26,
+                    color: Colors.black12,
                     child: _albumArtUrl != null && _albumArtUrl!.isNotEmpty
                         ? Image.network(
                             _albumArtUrl!,
@@ -790,10 +821,10 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
                               return Image.asset(
                                 fallbackAsset,
                                 fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) => const Icon(
+                                errorBuilder: (context, error, stackTrace) => Icon(
                                   Icons.radio,
                                   size: 80,
-                                  color: Colors.white30,
+                                  color: AppColors.subText(context),
                                 ),
                               );
                             },
@@ -801,10 +832,10 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
                         : Image.asset(
                             _currentStation?.coverArt ?? 'assets/logo.png',
                             fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) => const Icon(
+                            errorBuilder: (context, error, stackTrace) => Icon(
                               Icons.radio,
                               size: 80,
-                              color: Colors.white30,
+                              color: AppColors.subText(context),
                             ),
                           ),
                   ),
@@ -816,10 +847,10 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
                   textAlign: TextAlign.center,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    color: AppColors.text(context),
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -828,18 +859,18 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
                   textAlign: TextAlign.center,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
-                    color: Colors.white60,
+                    color: AppColors.subText(context),
                   ),
                 ),
                 const SizedBox(height: 24),
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF0F172A),
+                    color: AppColors.bg(context),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.white10),
+                    border: Border.all(color: AppColors.border(context)),
                   ),
                   child: Column(
                     children: [
@@ -856,12 +887,12 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
                             playButton = const SizedBox(
                               height: 64,
                               width: 64,
-                              child: CircularProgressIndicator(color: Color(0xFFEF4444)),
+                              child: CircularProgressIndicator(color: AppColors.primary),
                             );
                           } else {
                             playButton = Container(
                               decoration: const BoxDecoration(
-                                color: Color(0xFFEF4444),
+                                color: AppColors.primary,
                                 shape: BoxShape.circle,
                               ),
                               child: IconButton(
@@ -902,7 +933,7 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
                             children: [
                               Icon(
                                 volume == 0 ? Icons.volume_off_rounded : Icons.volume_up_rounded,
-                                color: Colors.white54,
+                                color: AppColors.subText(context),
                                 size: 20,
                               ),
                               Expanded(
@@ -910,8 +941,8 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
                                   value: volume,
                                   min: 0.0,
                                   max: 1.0,
-                                  activeColor: const Color(0xFFEF4444),
-                                  inactiveColor: Colors.white10,
+                                  activeColor: AppColors.primary,
+                                  inactiveColor: AppColors.border(context),
                                   onChanged: (newVolume) {
                                     _audioPlayer.setVolume(newVolume);
                                   },
@@ -925,20 +956,20 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
+                          Text(
                             'SLEEP TIMER:',
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
-                              color: Colors.white60,
+                              color: AppColors.subText(context),
                               letterSpacing: 1,
                             ),
                           ),
                           DropdownButton<int>(
                             value: _selectedSleepMinutes,
-                            dropdownColor: const Color(0xFF1E293B),
+                            dropdownColor: AppColors.card(context),
                             underline: const SizedBox.shrink(),
-                            style: const TextStyle(color: Colors.white, fontSize: 12),
+                            style: TextStyle(color: AppColors.text(context), fontSize: 12),
                             items: const [
                               DropdownMenuItem(value: 0, child: Text('Off')),
                               DropdownMenuItem(value: 15, child: Text('15 Mins')),
@@ -964,12 +995,12 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
+                          Text(
                             'ALARM CLOCK:',
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
-                              color: Colors.white60,
+                              color: AppColors.subText(context),
                               letterSpacing: 1,
                             ),
                           ),
@@ -978,7 +1009,7 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
                               if (_alarmTime != null)
                                 Switch(
                                   value: _isAlarmActive,
-                                  activeColor: const Color(0xFFEF4444),
+                                  activeColor: AppColors.primary,
                                   onChanged: (val) {
                                     setState(() {
                                       _isAlarmActive = val;
@@ -993,10 +1024,9 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
                                     initialTime: _alarmTime ?? TimeOfDay.now(),
                                     builder: (context, child) {
                                       return Theme(
-                                        data: ThemeData.dark().copyWith(
-                                          colorScheme: const ColorScheme.dark(
-                                            primary: Color(0xFFEF4444),
-                                            surface: Color(0xFF1E293B),
+                                        data: Theme.of(context).copyWith(
+                                          colorScheme: Theme.of(context).colorScheme.copyWith(
+                                            primary: AppColors.primary,
                                           ),
                                         ),
                                         child: child!,
@@ -1011,10 +1041,10 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
                                     });
                                   }
                                 },
-                                icon: const Icon(Icons.alarm, color: Colors.white70, size: 16),
+                                icon: Icon(Icons.alarm, color: AppColors.text(context).withOpacity(0.7), size: 16),
                                 label: Text(
                                   _alarmTime != null ? _alarmTime!.format(context) : 'Set Alarm',
-                                  style: const TextStyle(color: Colors.white, fontSize: 12),
+                                  style: TextStyle(color: AppColors.text(context), fontSize: 12),
                                 ),
                               ),
                             ],
@@ -1035,19 +1065,19 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
                     margin: const EdgeInsets.only(top: 8),
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF0F172A),
+                      color: AppColors.bg(context),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: _songHistory.isEmpty
-                        ? const Text(
+                        ? Text(
                             'No recent history available',
-                            style: TextStyle(color: Colors.white38, fontSize: 12),
+                            style: TextStyle(color: AppColors.subText(context), fontSize: 12),
                           )
                         : ListView.separated(
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
                             itemCount: _songHistory.length,
-                            separatorBuilder: (_, _) => const Divider(color: Colors.white10),
+                            separatorBuilder: (_, _) => Divider(color: AppColors.border(context)),
                             itemBuilder: (context, index) {
                               final track = _songHistory[index];
                               return Row(
@@ -1075,19 +1105,19 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
                                       children: [
                                         Text(
                                           track['title'] ?? '',
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                             fontWeight: FontWeight.bold,
                                             fontSize: 13,
-                                            color: Colors.white,
+                                            color: AppColors.text(context),
                                           ),
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                         ),
                                         Text(
                                           track['artist'] ?? '',
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                             fontSize: 11,
-                                            color: Colors.white54,
+                                            color: AppColors.subText(context),
                                           ),
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
@@ -1111,14 +1141,14 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
                     margin: const EdgeInsets.only(top: 8),
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF0F172A),
+                      color: AppColors.bg(context),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: ListView.separated(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       itemCount: _programSchedule.length,
-                      separatorBuilder: (_, _) => const Divider(color: Colors.white10),
+                      separatorBuilder: (_, _) => Divider(color: AppColors.border(context)),
                       itemBuilder: (context, index) {
                         final item = _programSchedule[index];
                         return Row(
@@ -1134,8 +1164,8 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
                             ),
                             Text(
                               item['title'] ?? '',
-                              style: const TextStyle(
-                                color: Colors.white,
+                              style: TextStyle(
+                                color: AppColors.text(context),
                                 fontSize: 12,
                               ),
                             ),
@@ -1149,32 +1179,32 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
                   width: double.infinity,
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white10,
+                      backgroundColor: AppColors.isDark(context) ? Colors.white10 : Colors.black12,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
                     ),
-                    icon: const Icon(Icons.share, size: 18, color: Colors.white),
-                    label: const Text(
+                    icon: Icon(Icons.share, size: 18, color: AppColors.text(context)),
+                    label: Text(
                       'SHARE GO RADIO',
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      style: TextStyle(color: AppColors.text(context), fontWeight: FontWeight.bold),
                     ),
                     onPressed: _shareApp,
                   ),
                 ),
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 20),
-                  child: Divider(color: Colors.white10),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 20),
+                  child: Divider(color: AppColors.border(context)),
                 ),
-                const Align(
+                Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
                     'LISTEN ON YOUR FAVORITE APP',
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
-                      color: Colors.white54,
+                      color: AppColors.subText(context),
                       letterSpacing: 1.2,
                     ),
                   ),
@@ -1197,9 +1227,9 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
                       borderRadius: BorderRadius.circular(8),
                       child: Container(
                         decoration: BoxDecoration(
-                          color: const Color(0xFF0F172A),
+                          color: AppColors.bg(context),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.white10),
+                          border: Border.all(color: AppColors.border(context)),
                         ),
                         alignment: Alignment.center,
                         padding: const EdgeInsets.symmetric(horizontal: 6),
@@ -1208,8 +1238,8 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
                           textAlign: TextAlign.center,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Colors.white70,
+                          style: TextStyle(
+                            color: AppColors.text(context).withOpacity(0.7),
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
                           ),
@@ -1218,16 +1248,16 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
                     );
                   },
                 ),
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 20),
-                  child: Divider(color: Colors.white10),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 20),
+                  child: Divider(color: AppColors.border(context)),
                 ),
-                const Text(
+                Text(
                   'CONTACT US',
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white54,
+                    color: AppColors.subText(context),
                     letterSpacing: 1.2,
                   ),
                 ),
@@ -1242,23 +1272,23 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
                 const SizedBox(height: 4),
                 InkWell(
                   onTap: () => _launchExternalUrl('tel:+2348134839763'),
-                  child: const Text(
+                  child: Text(
                     '+234 813 483 9763',
-                    style: TextStyle(color: Colors.white70, fontSize: 13),
+                    style: TextStyle(color: AppColors.text(context).withOpacity(0.7), fontSize: 13),
                   ),
                 ),
                 const SizedBox(height: 4),
                 InkWell(
                   onTap: () => _launchExternalUrl('tel:+2348050344913'),
-                  child: const Text(
+                  child: Text(
                     '+234 805 034 4913',
-                    style: TextStyle(color: Colors.white70, fontSize: 13),
+                    style: TextStyle(color: AppColors.text(context).withOpacity(0.7), fontSize: 13),
                   ),
                 ),
                 const SizedBox(height: 16),
-                const Text(
+                Text(
                   '© GO RADIO. All Rights Reserved.',
-                  style: TextStyle(color: Colors.white30, fontSize: 11),
+                  style: TextStyle(color: AppColors.subText(context), fontSize: 11),
                 ),
                 const SizedBox(height: 4),
                 Row(
@@ -1271,14 +1301,14 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
-                      child: const Text(
+                      child: Text(
                         'Privacy Policy',
-                        style: TextStyle(color: Colors.white54, fontSize: 11),
+                        style: TextStyle(color: AppColors.subText(context), fontSize: 11),
                       ),
                     ),
-                    const Text(
+                    Text(
                       '|',
-                      style: TextStyle(color: Colors.white30, fontSize: 11),
+                      style: TextStyle(color: AppColors.subText(context).withOpacity(0.4), fontSize: 11),
                     ),
                     TextButton(
                       onPressed: () => _launchExternalUrl('https://goradio.com.ng/terms-of-service'),
@@ -1287,9 +1317,9 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
-                      child: const Text(
+                      child: Text(
                         'Terms of Service',
-                        style: TextStyle(color: Colors.white54, fontSize: 11),
+                        style: TextStyle(color: AppColors.subText(context), fontSize: 11),
                       ),
                     ),
                   ],
@@ -1313,25 +1343,25 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: const Color(0xFF0F172A),
+          color: AppColors.bg(context),
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: Colors.white10),
+          border: Border.all(color: AppColors.border(context)),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
               title.toUpperCase(),
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.bold,
-                color: Colors.white70,
+                color: AppColors.text(context).withOpacity(0.7),
                 letterSpacing: 1,
               ),
             ),
             Icon(
               isOpen ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
-              color: Colors.white70,
+              color: AppColors.text(context).withOpacity(0.7),
               size: 20,
             ),
           ],
@@ -1375,9 +1405,9 @@ class _ExploreScreenState extends State<ExploreScreen> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           decoration: BoxDecoration(
-            color: const Color(0xFF1E293B),
+            color: AppColors.card(context),
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: Colors.white10),
+            border: Border.all(color: AppColors.border(context)),
           ),
           child: TextField(
             controller: _searchController,
@@ -1387,13 +1417,13 @@ class _ExploreScreenState extends State<ExploreScreen> {
               });
             },
             decoration: InputDecoration(
-              icon: const Icon(Icons.search, color: Colors.white54),
+              icon: Icon(Icons.search, color: AppColors.subText(context)),
               hintText: 'Search radios...',
-              hintStyle: const TextStyle(color: Colors.white54),
+              hintStyle: TextStyle(color: AppColors.subText(context)),
               border: InputBorder.none,
               suffixIcon: _searchQuery.isNotEmpty 
                   ? IconButton(
-                      icon: const Icon(Icons.clear, color: Colors.white54),
+                      icon: Icon(Icons.clear, color: AppColors.subText(context)),
                       onPressed: () {
                         _searchController.clear();
                         setState(() {
@@ -1403,7 +1433,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
                     )
                   : null,
             ),
-            style: const TextStyle(color: Colors.white),
+            style: TextStyle(color: AppColors.text(context)),
           ),
         ),
         const SizedBox(height: 24),
@@ -1411,7 +1441,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
         const SizedBox(height: 24),
         Text(
           _searchQuery.isEmpty ? 'Featured radios' : 'Search Results', 
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.text(context))
         ),
         const SizedBox(height: 12),
         
@@ -1423,7 +1453,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
               return const Padding(
                 padding: EdgeInsets.all(32.0),
                 child: Center(
-                  child: CircularProgressIndicator(color: Color(0xFFEF4444)),
+                  child: CircularProgressIndicator(color: AppColors.primary),
                 ),
               );
             } 
@@ -1436,10 +1466,10 @@ class _ExploreScreenState extends State<ExploreScreen> {
               );
             } 
             else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-              return const Center(
+              return Center(
                 child: Text(
                   "No stations available right now.",
-                  style: TextStyle(color: Colors.white54),
+                  style: TextStyle(color: AppColors.subText(context)),
                 ),
               );
             }
@@ -1459,7 +1489,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
                   padding: const EdgeInsets.all(32.0),
                   child: Text(
                     "No radios found for '$_searchQuery'",
-                    style: const TextStyle(color: Colors.white54),
+                    style: TextStyle(color: AppColors.subText(context)),
                   ),
                 ),
               );
@@ -1487,8 +1517,8 @@ class _ExploreScreenState extends State<ExploreScreen> {
                       Container(
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(16),
-                          color: const Color(0xFF1E293B),
-                          border: Border.all(color: Colors.white10),
+                          color: AppColors.card(context),
+                          border: Border.all(color: AppColors.border(context)),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1501,8 +1531,8 @@ class _ExploreScreenState extends State<ExploreScreen> {
                                   width: double.infinity,
                                   fit: BoxFit.cover,
                                   errorBuilder: (context, error, stackTrace) => Container(
-                                    color: const Color(0xFF0F172A),
-                                    child: const Icon(Icons.radio, size: 40, color: Colors.white30),
+                                    color: AppColors.bg(context),
+                                    child: Icon(Icons.radio, size: 40, color: AppColors.subText(context)),
                                   ),
                                 ),
                               ),
@@ -1514,10 +1544,10 @@ class _ExploreScreenState extends State<ExploreScreen> {
                                 children: [
                                   Text(
                                     station.name,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 14,
-                                      color: Colors.white,
+                                      color: AppColors.text(context),
                                     ),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
@@ -1525,8 +1555,8 @@ class _ExploreScreenState extends State<ExploreScreen> {
                                   const SizedBox(height: 4),
                                   Text(
                                     station.category,
-                                    style: const TextStyle(
-                                      color: Colors.white54,
+                                    style: TextStyle(
+                                      color: AppColors.subText(context),
                                       fontSize: 12,
                                     ),
                                   ),
@@ -1549,7 +1579,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
                             ),
                             child: Icon(
                               isFavorite ? Icons.favorite : Icons.favorite_border,
-                              color: isFavorite ? const Color(0xFFEF4444) : Colors.white,
+                              color: isFavorite ? AppColors.primary : Colors.white,
                               size: 20,
                             ),
                           ),
@@ -1594,9 +1624,9 @@ class CategoryScreen extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(16.0),
       children: [
-        const Text(
+        Text(
           'Discover by category',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.text(context)),
         ),
         const SizedBox(height: 16),
         GridView.builder(
@@ -1680,20 +1710,21 @@ class CategoryDetailScreen extends StatelessWidget {
       appBar: AppBar(
         title: Text(
           categoryName,
-          style: const TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context)),
         ),
-        backgroundColor: const Color(0xFF1E293B),
+        iconTheme: IconThemeData(color: AppColors.text(context)),
+        backgroundColor: AppColors.card(context),
         elevation: 0,
       ),
       body: FutureBuilder<List<Station>>(
         future: StationService.loadStations(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator(color: Color(0xFFEF4444)));
+            return const Center(child: CircularProgressIndicator(color: AppColors.primary));
           } else if (snapshot.hasError) {
             return Center(child: Text("Error: ${snapshot.error}", style: const TextStyle(color: Colors.red)));
           } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text("No stations found.", style: TextStyle(color: Colors.white54)));
+            return Center(child: Text("No stations found.", style: TextStyle(color: AppColors.subText(context))));
           }
 
           final categoryStations = snapshot.data!.where((station) {
@@ -1715,9 +1746,9 @@ class CategoryDetailScreen extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.radio_outlined, size: 64, color: Colors.white.withOpacity(0.2)),
+                  Icon(Icons.radio_outlined, size: 64, color: AppColors.subText(context).withOpacity(0.2)),
                   const SizedBox(height: 16),
-                  Text("No stations in $categoryName yet.", style: const TextStyle(color: Colors.white54)),
+                  Text("No stations in $categoryName yet.", style: TextStyle(color: AppColors.subText(context))),
                 ],
               ),
             );
@@ -1731,9 +1762,12 @@ class CategoryDetailScreen extends StatelessWidget {
               final isFavorite = favoriteStations.any((s) => s.id == station.id);
 
               return Card(
-                color: const Color(0xFF1E293B),
+                color: AppColors.card(context),
                 margin: const EdgeInsets.only(bottom: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(color: AppColors.border(context)),
+                ),
                 child: ListTile(
                   contentPadding: const EdgeInsets.all(12),
                   leading: ClipRRect(
@@ -1746,24 +1780,24 @@ class CategoryDetailScreen extends StatelessWidget {
                       errorBuilder: (context, error, stackTrace) => Container(
                         width: 56,
                         height: 56,
-                        color: const Color(0xFF0F172A),
-                        child: const Icon(Icons.radio, color: Colors.white30),
+                        color: AppColors.bg(context),
+                        child: Icon(Icons.radio, color: AppColors.subText(context)),
                       ),
                     ),
                   ),
-                  title: Text(station.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                  subtitle: Text(station.tagline, style: const TextStyle(color: Colors.white54, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  title: Text(station.name, style: TextStyle(color: AppColors.text(context), fontWeight: FontWeight.bold)),
+                  subtitle: Text(station.tagline, style: TextStyle(color: AppColors.subText(context), fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       IconButton(
                         icon: Icon(
                           isFavorite ? Icons.favorite : Icons.favorite_border,
-                          color: isFavorite ? const Color(0xFFEF4444) : Colors.white54,
+                          color: isFavorite ? AppColors.primary : AppColors.subText(context),
                         ),
                         onPressed: () => onToggleFavorite(station),
                       ),
-                      const Icon(Icons.play_circle_fill, color: Color(0xFFEF4444), size: 32),
+                      const Icon(Icons.play_circle_fill, color: AppColors.primary, size: 32),
                     ],
                   ),
                   onTap: () {
@@ -1799,19 +1833,19 @@ class FavoriteScreen extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.favorite_border, size: 80, color: Colors.white.withValues(alpha: 0.2)),
+            Icon(Icons.favorite_border, size: 80, color: AppColors.subText(context).withOpacity(0.2)),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               'Whoops!',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.text(context)),
             ),
             const SizedBox(height: 8),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 32.0),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32.0),
               child: Text(
                 "Your favorite list is empty because you haven't added any radios to the favorite menu.",
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white54, height: 1.5),
+                style: TextStyle(color: AppColors.subText(context), height: 1.5),
               ),
             ),
           ],
@@ -1825,9 +1859,12 @@ class FavoriteScreen extends StatelessWidget {
       itemBuilder: (context, index) {
         final station = favoriteStations[index];
         return Card(
-          color: const Color(0xFF1E293B),
+          color: AppColors.card(context),
           margin: const EdgeInsets.only(bottom: 12),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: AppColors.border(context)),
+          ),
           child: ListTile(
             contentPadding: const EdgeInsets.all(12),
             leading: ClipRRect(
@@ -1840,22 +1877,22 @@ class FavoriteScreen extends StatelessWidget {
                 errorBuilder: (context, error, stackTrace) => Container(
                   width: 56,
                   height: 56,
-                  color: const Color(0xFF0F172A),
-                  child: const Icon(Icons.radio, color: Colors.white30),
+                  color: AppColors.bg(context),
+                  child: Icon(Icons.radio, color: AppColors.subText(context)),
                 ),
               ),
             ),
-            title: Text(station.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-            subtitle: Text(station.category, style: const TextStyle(color: Colors.white54, fontSize: 12)),
+            title: Text(station.name, style: TextStyle(color: AppColors.text(context), fontWeight: FontWeight.bold)),
+            subtitle: Text(station.category, style: TextStyle(color: AppColors.subText(context), fontSize: 12)),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 IconButton(
-                  icon: const Icon(Icons.favorite, color: Color(0xFFEF4444)),
+                  icon: const Icon(Icons.favorite, color: AppColors.primary),
                   onPressed: () => onToggleFavorite(station),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.play_circle_fill, color: Colors.white, size: 32),
+                  icon: Icon(Icons.play_circle_fill, color: AppColors.text(context), size: 32),
                   onPressed: () => onStationSelected(station),
                 ),
               ],
@@ -1937,7 +1974,7 @@ class WebStyleEqualizer extends StatefulWidget {
   const WebStyleEqualizer({
     super.key,
     required this.isPlaying,
-    this.color = const Color(0xFFEF4444),
+    this.color = AppColors.primary,
   });
 
   @override
@@ -2054,72 +2091,163 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _prefs.setBool('push_notifications', val);
   }
 
+  // 🚨 NEW METHOD: In-App Dialog for submitting a new station request
+  void _showRequestDialog(BuildContext context) {
+    final nameController = TextEditingController();
+    final genreController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: AppColors.card(context),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text('Request Station', style: TextStyle(color: AppColors.text(context), fontWeight: FontWeight.bold)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                style: TextStyle(color: AppColors.text(context)),
+                decoration: InputDecoration(
+                  labelText: 'Station Name',
+                  labelStyle: TextStyle(color: AppColors.subText(context)),
+                  enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.border(context))),
+                  focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: AppColors.primary)),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: genreController,
+                style: TextStyle(color: AppColors.text(context)),
+                decoration: InputDecoration(
+                  labelText: 'Genre / Location',
+                  labelStyle: TextStyle(color: AppColors.subText(context)),
+                  enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.border(context))),
+                  focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: AppColors.primary)),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Cancel', style: TextStyle(color: AppColors.subText(context))),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+              onPressed: () {
+                final name = nameController.text;
+                final genre = genreController.text;
+                if(name.isNotEmpty) {
+                  final message = Uri.encodeComponent("Hello GoRadio! I would like to request a new station addition:\n\nStation Name: $name\nGenre/Location: $genre");
+                  launchUrl(Uri.parse('mailto:support@goradio.com.ng?subject=New Station Request&body=$message'));
+                  Navigator.pop(context);
+                }
+              },
+              child: const Text('Submit', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      }
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Settings', style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: const Color(0xFF1E293B),
+        title: Text('Settings', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
+        backgroundColor: AppColors.card(context),
+        iconTheme: IconThemeData(color: AppColors.text(context)),
         elevation: 0,
       ),
       body: ListView(
         padding: const EdgeInsets.all(16.0),
         children: [
-          const Text('Preferences', style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 1.2)),
+          const Text('Preferences', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 1.2)),
           const SizedBox(height: 12),
+          // 🚨 BRAND NEW UI TOGGLE: Instantly flips the entire app theme
           SwitchListTile(
-            activeColor: const Color(0xFFEF4444),
+            activeColor: AppColors.primary,
             contentPadding: EdgeInsets.zero,
-            title: const Text('Data Saver Mode', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-            subtitle: const Text('Stream audio at a lower bitrate to save mobile data.', style: TextStyle(color: Colors.white54, fontSize: 12)),
+            title: Text('Dark Mode', style: TextStyle(color: AppColors.text(context), fontWeight: FontWeight.bold)),
+            subtitle: Text('Switch between crisp light and dark themes.', style: TextStyle(color: AppColors.subText(context), fontSize: 12)),
+            value: GoRadioApp.themeNotifier.value == ThemeMode.dark,
+            onChanged: (val) {
+              setState(() {
+                GoRadioApp.themeNotifier.value = val ? ThemeMode.dark : ThemeMode.light;
+                _prefs.setBool('is_dark_mode', val);
+              });
+            },
+          ),
+          SwitchListTile(
+            activeColor: AppColors.primary,
+            contentPadding: EdgeInsets.zero,
+            title: Text('Data Saver Mode', style: TextStyle(color: AppColors.text(context), fontWeight: FontWeight.bold)),
+            subtitle: Text('Stream audio at a lower bitrate to save mobile data.', style: TextStyle(color: AppColors.subText(context), fontSize: 12)),
             value: _dataSaver,
             onChanged: _toggleDataSaver,
           ),
           SwitchListTile(
-            activeColor: const Color(0xFFEF4444),
+            activeColor: AppColors.primary,
             contentPadding: EdgeInsets.zero,
-            title: const Text('Push Notifications', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-            subtitle: const Text('Receive alerts for live shows and new stations.', style: TextStyle(color: Colors.white54, fontSize: 12)),
+            title: Text('Push Notifications', style: TextStyle(color: AppColors.text(context), fontWeight: FontWeight.bold)),
+            subtitle: Text('Receive alerts for live shows and new stations.', style: TextStyle(color: AppColors.subText(context), fontSize: 12)),
             value: _notifications,
             onChanged: _toggleNotifications,
           ),
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 16.0),
-            child: Divider(color: Colors.white10),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16.0),
+            child: Divider(color: AppColors.border(context)),
           ),
-          const Text('Storage & Data', style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 1.2)),
+          // 🚨 BRAND NEW SETTINGS MENU: Engage and Request Stations
+          const Text('Engage', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 1.2)),
           const SizedBox(height: 12),
           ListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('Clear Image Cache', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-            subtitle: const Text('Free up space by clearing cached station logos.', style: TextStyle(color: Colors.white54, fontSize: 12)),
-            trailing: const Icon(Icons.delete_outline, color: Colors.white54),
+            title: Text('Request a Station', style: TextStyle(color: AppColors.text(context), fontWeight: FontWeight.bold)),
+            subtitle: Text('Suggest a new radio station for the app.', style: TextStyle(color: AppColors.subText(context), fontSize: 12)),
+            trailing: Icon(Icons.add_circle_outline, color: AppColors.subText(context)),
+            onTap: () => _showRequestDialog(context),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16.0),
+            child: Divider(color: AppColors.border(context)),
+          ),
+          const Text('Storage & Data', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 1.2)),
+          const SizedBox(height: 12),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text('Clear Image Cache', style: TextStyle(color: AppColors.text(context), fontWeight: FontWeight.bold)),
+            subtitle: Text('Free up space by clearing cached station logos.', style: TextStyle(color: AppColors.subText(context), fontSize: 12)),
+            trailing: Icon(Icons.delete_outline, color: AppColors.subText(context)),
             onTap: () {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Image cache cleared successfully.'), duration: Duration(seconds: 2)),
               );
             },
           ),
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 16.0),
-            child: Divider(color: Colors.white10),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16.0),
+            child: Divider(color: AppColors.border(context)),
           ),
-          const Text('About', style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 1.2)),
+          const Text('About', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 1.2)),
           const SizedBox(height: 12),
-          const ListTile(
+          ListTile(
             contentPadding: EdgeInsets.zero,
-            title: Text('About GoRadio', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-            subtitle: Text('Version 1.0.0\nDeveloped by Arktech Solutions', style: TextStyle(color: Colors.white54, fontSize: 12)),
+            title: Text('About GoRadio', style: TextStyle(color: AppColors.text(context), fontWeight: FontWeight.bold)),
+            subtitle: Text('Version 1.0.0\nDeveloped by Arktech Solutions', style: TextStyle(color: AppColors.subText(context), fontSize: 12)),
           ),
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 16.0),
-            child: Divider(color: Colors.white10),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16.0),
+            child: Divider(color: AppColors.border(context)),
           ),
           ListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('Exit App', style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.bold)),
-            subtitle: const Text('Close the application.', style: TextStyle(color: Colors.white54, fontSize: 12)),
-            trailing: const Icon(Icons.power_settings_new, color: Color(0xFFEF4444)),
+            title: const Text('Exit App', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
+            subtitle: Text('Close the application.', style: TextStyle(color: AppColors.subText(context), fontSize: 12)),
+            trailing: const Icon(Icons.power_settings_new, color: AppColors.primary),
             onTap: () {
               SystemChannels.platform.invokeMethod('SystemNavigator.pop');
             },
