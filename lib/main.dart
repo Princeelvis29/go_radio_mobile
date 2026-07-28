@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
-import 'dart:io'; // 🚨 Updated to allow physical file creation
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
@@ -12,7 +12,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:palette_generator/palette_generator.dart';
-import 'package:path_provider/path_provider.dart'; // 🚨 Added path_provider for recording
+import 'package:path_provider/path_provider.dart';
 
 import 'models/station_model.dart';
 import 'services/station_service.dart';
@@ -122,7 +122,6 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
 
   Color _dominantColor = const Color(0xFF1E293B);
 
-  // 🚨 Live Recording Variables
   bool _isRecording = false;
   http.Client? _recordClient;
   StreamSubscription<List<int>>? _recordSubscription;
@@ -172,7 +171,6 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
     _alarmClockTimer = Timer.periodic(const Duration(seconds: 30), (_) => _checkAlarm());
   }
 
-  // 🚨 Dynamic Palette Extraction Logic
   Future<void> _updatePalette() async {
     try {
       ImageProvider imageProvider;
@@ -278,7 +276,6 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
     }
   }
 
-  // 🚨 Core Live Recording Logic
   Future<void> _toggleRecording() async {
     if (_isRecording) {
       _stopRecording();
@@ -295,7 +292,6 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
 
     try {
       final directory = await getApplicationDocumentsDirectory();
-      // Ensure the directory exists
       if (!await directory.exists()) {
         await directory.create(recursive: true);
       }
@@ -388,7 +384,6 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
   }
 
   Future<void> _playSelectedStation(Station station) async {
-    // If currently recording, stop it before switching stations
     if (_isRecording) {
       _stopRecording();
     }
@@ -447,7 +442,7 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
 
   @override
   void dispose() {
-    _stopRecording(); // Ensure background streams are killed
+    _stopRecording(); 
     _metadataTimer?.cancel();
     _sleepTimer?.cancel();
     _countdownTimer?.cancel();
@@ -727,6 +722,18 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
             onTap: () {
               Navigator.pop(context);
               setState(() => _currentIndex = 0);
+            },
+          ),
+          // 🚨 Brand New Navigation Item for Recordings
+          ListTile(
+            leading: Icon(Icons.mic_none, color: AppColors.text(context).withOpacity(0.7)),
+            title: Text('My Recordings', style: TextStyle(color: AppColors.text(context))),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const RecordingsScreen()),
+              );
             },
           ),
           ListTile(
@@ -1142,7 +1149,6 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
                           ),
                         ],
                       ),
-                      // 🚨 NEW RECORDING UI INTEGRATION
                       const SizedBox(height: 6),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -2375,6 +2381,244 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ],
       ),
+    );
+  }
+}
+
+// 🚨 BRAND NEW SCREEN: The complete My Recordings Library
+class RecordingsScreen extends StatefulWidget {
+  const RecordingsScreen({super.key});
+
+  @override
+  State<RecordingsScreen> createState() => _RecordingsScreenState();
+}
+
+class _RecordingsScreenState extends State<RecordingsScreen> {
+  List<File> _recordings = [];
+  bool _isLoading = true;
+  
+  // Isolated player specifically for local offline playback
+  final AudioPlayer _offlinePlayer = AudioPlayer();
+  String? _playingPath;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRecordings();
+    
+    // Automatically reset UI when an offline track finishes
+    _offlinePlayer.playerStateStream.listen((state) {
+      if (state.processingState == ProcessingState.completed) {
+        setState(() {
+          _playingPath = null;
+        });
+      }
+    });
+  }
+
+  Future<void> _loadRecordings() async {
+    try {
+      final directory = await getApplicationDocumentsDirectory();
+      final List<FileSystemEntity> files = directory.listSync();
+      
+      final mp3Files = files
+          .whereType<File>()
+          .where((file) => file.path.endsWith('.mp3'))
+          .toList();
+      
+      // Sort to show the newest recordings at the top
+      mp3Files.sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
+
+      setState(() {
+        _recordings = mp3Files;
+        _isLoading = false;
+      });
+    } catch (e) {
+      debugPrint('Error loading recordings: $e');
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _offlinePlayer.dispose();
+    super.dispose();
+  }
+  
+  void _deleteFile(File file) async {
+    try {
+      if (_playingPath == file.path) {
+        await _offlinePlayer.stop();
+        _playingPath = null;
+      }
+      await file.delete();
+      _loadRecordings();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Recording deleted.'),
+            backgroundColor: AppColors.primary,
+          )
+        );
+      }
+    } catch(e) {
+      debugPrint('Error deleting file: $e');
+    }
+  }
+
+  void _shareFile(File file) {
+    Share.shareXFiles([XFile(file.path)], text: 'Check out this live stream recording from Go Radio!');
+  }
+
+  Future<void> _togglePlay(File file) async {
+    try {
+      if (_playingPath == file.path) {
+        if (_offlinePlayer.playing) {
+          await _offlinePlayer.pause();
+        } else {
+          await _offlinePlayer.play();
+        }
+        setState(() {}); // Force UI update for play/pause icon
+      } else {
+        await _offlinePlayer.setFilePath(file.path);
+        await _offlinePlayer.play();
+        setState(() {
+          _playingPath = file.path;
+        });
+      }
+    } catch (e) {
+      debugPrint('Playback error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Unable to play this recording.'))
+        );
+      }
+    }
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')} at ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('My Recordings', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
+        backgroundColor: AppColors.card(context),
+        iconTheme: IconThemeData(color: AppColors.text(context)),
+        elevation: 0,
+      ),
+      body: _isLoading 
+        ? Center(child: CircularProgressIndicator(color: AppColors.primary))
+        : _recordings.isEmpty
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.mic_off_outlined, size: 80, color: AppColors.subText(context).withOpacity(0.3)),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No Recordings Yet',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.text(context)),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Tap the record button on the player to save live streams.',
+                    style: TextStyle(color: AppColors.subText(context)),
+                  ),
+                ],
+              ),
+            )
+          : ListView.builder(
+              padding: const EdgeInsets.all(16.0),
+              itemCount: _recordings.length,
+              itemBuilder: (context, index) {
+                final file = _recordings[index];
+                final fileName = file.path.split('/').last;
+                final fileSize = (file.lengthSync() / 1024 / 1024).toStringAsFixed(2);
+                final dateModified = file.lastModifiedSync();
+                final isPlayingThis = _playingPath == file.path;
+                final isPlaying = isPlayingThis && _offlinePlayer.playing;
+
+                return Card(
+                  color: AppColors.card(context),
+                  margin: const EdgeInsets.only(bottom: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(color: isPlayingThis ? AppColors.primary : AppColors.border(context)),
+                  ),
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.all(12),
+                    leading: CircleAvatar(
+                      backgroundColor: isPlayingThis ? AppColors.primary.withOpacity(0.2) : AppColors.bg(context),
+                      child: Icon(
+                        Icons.audio_file, 
+                        color: isPlayingThis ? AppColors.primary : AppColors.subText(context)
+                      ),
+                    ),
+                    title: Text(
+                      fileName, 
+                      style: TextStyle(color: AppColors.text(context), fontWeight: FontWeight.bold, fontSize: 13),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    subtitle: Padding(
+                      padding: const EdgeInsets.only(top: 4.0),
+                      child: Text(
+                        '$fileSize MB • ${_formatDate(dateModified)}', 
+                        style: TextStyle(color: AppColors.subText(context), fontSize: 11)
+                      ),
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: Icon(Icons.share_outlined, color: AppColors.subText(context), size: 20),
+                          onPressed: () => _shareFile(file),
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.delete_outline, color: AppColors.subText(context), size: 20),
+                          onPressed: () {
+                            showDialog(
+                              context: context,
+                              builder: (ctx) => AlertDialog(
+                                backgroundColor: AppColors.card(context),
+                                title: Text('Delete Recording?', style: TextStyle(color: AppColors.text(context))),
+                                content: Text('Are you sure you want to delete this audio file permanently?', style: TextStyle(color: AppColors.subText(context))),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(ctx),
+                                    child: Text('Cancel', style: TextStyle(color: AppColors.subText(context))),
+                                  ),
+                                  TextButton(
+                                    onPressed: () {
+                                      Navigator.pop(ctx);
+                                      _deleteFile(file);
+                                    },
+                                    child: const Text('Delete', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
+                                  ),
+                                ],
+                              )
+                            );
+                          },
+                        ),
+                        IconButton(
+                          icon: Icon(
+                            isPlaying ? Icons.pause_circle_filled : Icons.play_circle_fill, 
+                            color: AppColors.primary, 
+                            size: 36
+                          ),
+                          onPressed: () => _togglePlay(file),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
     );
   }
 }
