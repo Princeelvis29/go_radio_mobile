@@ -2364,7 +2364,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ListTile(
             contentPadding: EdgeInsets.zero,
             title: Text('About GoRadio', style: TextStyle(color: AppColors.text(context), fontWeight: FontWeight.bold)),
-            subtitle: Text('Version 1.0.0\nDeveloped by Arktech Solutions', style: TextStyle(color: AppColors.subText(context), fontSize: 12)),
+            subtitle: Text('Version 2.1.4\nDeveloped by Arktech Solutions', style: TextStyle(color: AppColors.subText(context), fontSize: 12)),
           ),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 16.0),
