@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
-import 'dart:io' show Platform;
+import 'dart:io'; // 🚨 Updated to allow physical file creation
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
@@ -12,11 +12,11 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:palette_generator/palette_generator.dart';
+import 'package:path_provider/path_provider.dart'; // 🚨 Added path_provider for recording
 
 import 'models/station_model.dart';
 import 'services/station_service.dart';
 
-// 🚨 Centralized AppColors Engine for Light/Dark Mode scaling
 class AppColors {
   static bool isDark(BuildContext context) => Theme.of(context).brightness == Brightness.dark;
   static Color bg(BuildContext context) => isDark(context) ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC);
@@ -31,7 +31,6 @@ class AppColors {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // 🚨 Pre-load theme preference before the app boots
   final prefs = await SharedPreferences.getInstance();
   final isDark = prefs.getBool('is_dark_mode') ?? true;
   GoRadioApp.themeNotifier.value = isDark ? ThemeMode.dark : ThemeMode.light;
@@ -52,7 +51,6 @@ Future<void> main() async {
 class GoRadioApp extends StatelessWidget {
   const GoRadioApp({super.key});
   
-  // 🚨 Global Theme Notifier to trigger instant UI updates
   static final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.dark);
 
   @override
@@ -122,10 +120,17 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
   int _selectedSleepMinutes = 0;
   int _sleepSecondsRemaining = 0;
 
+  Color _dominantColor = const Color(0xFF1E293B);
+
+  // 🚨 Live Recording Variables
+  bool _isRecording = false;
+  http.Client? _recordClient;
+  StreamSubscription<List<int>>? _recordSubscription;
+  File? _recordedFile;
+  int _recordedBytes = 0;
+
   bool _showHistory = false;
   bool _showSchedule = false;
-
-  Color _dominantColor = const Color(0xFF1E293B);
 
   final List<Map<String, String>> _programSchedule = const [
     {'time': '06:00 - 10:00', 'title': 'Morning Drive'},
@@ -167,6 +172,7 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
     _alarmClockTimer = Timer.periodic(const Duration(seconds: 30), (_) => _checkAlarm());
   }
 
+  // 🚨 Dynamic Palette Extraction Logic
   Future<void> _updatePalette() async {
     try {
       ImageProvider imageProvider;
@@ -272,6 +278,85 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
     }
   }
 
+  // 🚨 Core Live Recording Logic
+  Future<void> _toggleRecording() async {
+    if (_isRecording) {
+      _stopRecording();
+    } else {
+      await _startRecording();
+    }
+  }
+
+  Future<void> _startRecording() async {
+    setState(() {
+      _isRecording = true;
+      _recordedBytes = 0;
+    });
+
+    try {
+      final directory = await getApplicationDocumentsDirectory();
+      // Ensure the directory exists
+      if (!await directory.exists()) {
+        await directory.create(recursive: true);
+      }
+      
+      final fileName = 'GoRadio_${DateTime.now().millisecondsSinceEpoch}.mp3';
+      _recordedFile = File('${directory.path}/$fileName');
+      
+      _recordClient = http.Client();
+      final request = http.Request('GET', Uri.parse(_currentStreamUrl));
+      final response = await _recordClient!.send(request);
+      
+      final sink = _recordedFile!.openWrite();
+      
+      _recordSubscription = response.stream.listen((chunk) {
+        sink.add(chunk);
+        if (mounted) {
+          setState(() {
+            _recordedBytes += chunk.length;
+          });
+        }
+      }, onDone: () async {
+        await sink.close();
+        _stopRecording();
+      }, onError: (e) async {
+        debugPrint('Recording stream error: $e');
+        await sink.close();
+        _stopRecording();
+      });
+      
+    } catch (e) {
+      debugPrint('Failed to start recording: $e');
+      _stopRecording();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to start recording stream.')),
+        );
+      }
+    }
+  }
+
+  void _stopRecording() {
+    _recordSubscription?.cancel();
+    _recordClient?.close();
+    
+    if (mounted) {
+      setState(() {
+        _isRecording = false;
+      });
+      
+      if (_recordedFile != null && _recordedBytes > 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Recording saved!\nSize: ${(_recordedBytes / 1024 / 1024).toStringAsFixed(2)} MB'),
+            backgroundColor: AppColors.success,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _initAudioPlayer() async {
     try {
       await _setAudioSourceWithMetadata();
@@ -303,6 +388,11 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
   }
 
   Future<void> _playSelectedStation(Station station) async {
+    // If currently recording, stop it before switching stations
+    if (_isRecording) {
+      _stopRecording();
+    }
+
     await _audioPlayer.stop();
     _metadataTimer?.cancel();
 
@@ -357,6 +447,7 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
 
   @override
   void dispose() {
+    _stopRecording(); // Ensure background streams are killed
     _metadataTimer?.cancel();
     _sleepTimer?.cancel();
     _countdownTimer?.cancel();
@@ -1046,6 +1137,39 @@ class _RadioPlayerScreenState extends State<RadioPlayerScreen> {
                                   _alarmTime != null ? _alarmTime!.format(context) : 'Set Alarm',
                                   style: TextStyle(color: AppColors.text(context), fontSize: 12),
                                 ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      // 🚨 NEW RECORDING UI INTEGRATION
+                      const SizedBox(height: 6),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'RECORD STREAM:',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.subText(context),
+                              letterSpacing: 1,
+                            ),
+                          ),
+                          Row(
+                            children: [
+                              if (_isRecording)
+                                Text(
+                                  '${(_recordedBytes / 1024 / 1024).toStringAsFixed(2)} MB  ',
+                                  style: const TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.bold),
+                                ),
+                              IconButton(
+                                icon: Icon(
+                                  _isRecording ? Icons.stop_circle : Icons.fiber_manual_record, 
+                                  color: _isRecording ? Colors.redAccent : AppColors.subText(context),
+                                  size: 26,
+                                ),
+                                onPressed: _toggleRecording,
                               ),
                             ],
                           ),
@@ -2091,7 +2215,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _prefs.setBool('push_notifications', val);
   }
 
-  // 🚨 NEW METHOD: In-App Dialog for submitting a new station request
   void _showRequestDialog(BuildContext context) {
     final nameController = TextEditingController();
     final genreController = TextEditingController();
@@ -2167,7 +2290,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         children: [
           const Text('Preferences', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 1.2)),
           const SizedBox(height: 12),
-          // 🚨 BRAND NEW UI TOGGLE: Instantly flips the entire app theme
           SwitchListTile(
             activeColor: AppColors.primary,
             contentPadding: EdgeInsets.zero,
@@ -2201,7 +2323,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             padding: const EdgeInsets.symmetric(vertical: 16.0),
             child: Divider(color: AppColors.border(context)),
           ),
-          // 🚨 BRAND NEW SETTINGS MENU: Engage and Request Stations
           const Text('Engage', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 1.2)),
           const SizedBox(height: 12),
           ListTile(

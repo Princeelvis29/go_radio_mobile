@@ -45,6 +45,7 @@ dependencies:
   google_mobile_ads: ^9.0.0
   shared_preferences: ^2.5.5
   palette_generator: ^0.3.3+7
+  path_provider: ^2.1.6
 
 dev_dependencies:
   flutter_test:
