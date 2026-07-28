@@ -1,4 +1,4 @@
-package com.example.go_radio_mobile
+package com.arktech.goradio
 
 import io.flutter.embedding.android.FlutterActivity
 import com.ryanheise.audioservice.AudioServiceActivity

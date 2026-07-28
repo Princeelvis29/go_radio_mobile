@@ -21,7 +21,7 @@ android {
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         
         // --- UPDATED MIN SDK & MULTIDEX FOR WORKMANAGER / ADMOB ---
-        minSdk = 23
+        minSdk = flutter.minSdkVersion
         targetSdk = 34
         versionCode = flutter.versionCode
         versionName = flutter.versionName
